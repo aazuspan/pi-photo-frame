@@ -112,7 +112,7 @@ class PhotoFrame:
     
     # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
-        self.DISPLAY = pi3d.Display.create(0, 0, 800, 800, frames_per_second=Constants.FPS,
+        self.DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
                                       background=Constants.BACKGROUND_COLOR)
         self.CAMERA = pi3d.Camera(is_3d=False)
         self.SHADER = pi3d.Shader("blend_new")
@@ -223,7 +223,7 @@ def _fix_rotation(image):
     try:
         orientation_value = exif_data[Constants.EXIF_ORIENTATION_TAG]
     # If the image's exif data doesn't have an orientation value
-    except (IndexError, TypeError):
+    except (IndexError, TypeError, KeyError):
         return image
 
     try:
