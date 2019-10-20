@@ -4,7 +4,7 @@ import random
 import pi3d
 from PIL import Image
 from classes.Constants import Constants
-from classes.IRW import IRW
+#from classes.IRW import IRW
 
 
 '''
@@ -100,7 +100,7 @@ def prev_slide(next_pic_num):
     return next_pic_num
 
 # Initialize the socket that receives IR remote signals
-IRW = IRW()
+#IRW = IRW()
 
 DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
                               background=Constants.BACKGROUND_COLOR)
@@ -183,7 +183,8 @@ while DISPLAY.loop_running():
     slide.draw()
 
     # Check for IR remote signals
-    command = IRW.get_key()
+    #command = IRW.get_key()
+    command = None
     # If an IR remote signal is detected
     if command:
         # Toggle pause
@@ -200,6 +201,7 @@ while DISPLAY.loop_running():
             break
 
     key = KEYBOARD.read()
+    key = -1
     if key != -1:
         next_time = next_slide()
     # Exit condition
