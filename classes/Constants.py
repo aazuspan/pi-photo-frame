@@ -11,7 +11,6 @@ class Constants:
     FIT = True
     EDGE_ALPHA = 0
     BACKGROUND_COLOR = (0, 0, 0, 1)
-    RESHUFFLE_AFTER = 1
     CODEPOINTS = '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ., _-/'
 
     # The exif tag number for orientation

@@ -4,7 +4,7 @@ import random
 import pi3d
 from PIL import Image
 from classes.Constants import Constants
-#from classes.IRW import IRW
+from classes.IRW import IRW
 
 
 '''
@@ -100,16 +100,16 @@ def prev_slide(next_pic_num):
     return next_pic_num
 
 # Initialize the socket that receives IR remote signals
-#IRW = IRW()
+IRW = IRW()
 
-DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
+DISPLAY = pi3d.Display.create(0, 0, 400, 400, frames_per_second=Constants.FPS,
                               background=Constants.BACKGROUND_COLOR)
 CAMERA = pi3d.Camera(is_3d=False)
 shader = pi3d.Shader("blend_new")
 slide = pi3d.Sprite(camera=CAMERA, w=DISPLAY.width, h=DISPLAY.height, z=5.0)
 slide.set_shader(shader)
 slide.unif[47] = Constants.EDGE_ALPHA
-KEYBOARD = pi3d.Keyboard()
+#KEYBOARD = pi3d.Keyboard()
 
 pic_list, number_pictures = get_files()
 if not pic_list:
@@ -183,10 +183,11 @@ while DISPLAY.loop_running():
     slide.draw()
 
     # Check for IR remote signals
-    #command = IRW.get_key()
-    command = None
+    command = IRW.get_key()
+    #command = None
     # If an IR remote signal is detected
     if command:
+        print(command)
         # Toggle pause
         if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
             toggle_pause()
@@ -200,7 +201,7 @@ while DISPLAY.loop_running():
         elif command in ['KEY_EXIT', 'KEY_STOP']:
             break
 
-    key = KEYBOARD.read()
+    #key = KEYBOARD.read()
     key = -1
     if key != -1:
         next_time = next_slide()
