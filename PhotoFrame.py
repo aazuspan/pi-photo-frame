@@ -48,7 +48,7 @@ def texture_load(filename):
     try:
         texture = pi3d.Texture(filename, blend=True, m_repeat=True)
     except Exception:
-        print(f"Error occured while loading file: {filename}!")
+        print("Error occured while loading file: {}!".format(filename))
         texture = None
     return texture
 
@@ -59,7 +59,7 @@ def fix_rotation(image):
         exif_data = image._getexif()
     # If the image doesn't have a _getexif method, it isn't valid
     except AttributeError:
-        raise ValueError(f'Exif data could not be recovered from {image}. Please confirm that it is a valid PIL Image.')
+        raise ValueError('Exif data could not be recovered from {}. Please confirm that it is a valid PIL Image.'.format(image))
     try:
         orientation_value = exif_data[Constants.EXIF_ORIENTATION_TAG]
     # If the image's exif data doesn't have an orientation value
@@ -113,7 +113,7 @@ KEYBOARD = pi3d.Keyboard()
 
 pic_list, number_pictures = get_files()
 if not pic_list:
-    raise Exception(f'No valid pictures were found in {Constants.PIC_DIR}!')
+    raise Exception('No valid pictures were found in {}!'.format(Constants.PIC_DIR))
 
 # Time when the next picture will be displayed
 next_time = 0.0
