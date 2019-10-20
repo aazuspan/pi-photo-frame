@@ -87,7 +87,7 @@ def load_picture(picture_path):
 # Add a text message to the screen
 def text_message(message):
     textblock.set_text(str(message))
-    textblock.colouring.set_colour(alpha=1.0)
+    textblock.colouring.set_colour(alpha=0.5)
     text.regen()
     text.draw()
     
@@ -111,7 +111,7 @@ def prev_slide(next_pic_num):
 # Initialize the socket that receives IR remote signals
 IRW = IRW()
 
-DISPLAY = pi3d.Display.create(0, 0, 400, 400, frames_per_second=Constants.FPS,
+DISPLAY = pi3d.Display.create(0, 0, 800, 800, frames_per_second=Constants.FPS,
                               background=Constants.BACKGROUND_COLOR)
 CAMERA = pi3d.Camera(is_3d=False)
 shader = pi3d.Shader("blend_new")
@@ -194,6 +194,11 @@ while DISPLAY.loop_running():
         slide.unif[44] = alpha
 
     slide.draw()
+    
+    # Paused text should stay on screen while paused
+    if paused:
+        # BUG: When play is pressed, pause text still shows over it
+        text.draw()
 
     # Check for IR remote signals
     command = IRW.get_key()
