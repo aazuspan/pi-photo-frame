@@ -1,3 +1,13 @@
+'''
+Digital Photo Frame
+
+Created by Aaron Zuspan, October 2019
+Based on pi3d demos https://github.com/pi3d/pi3d_demos
+
+Controls a 2d slideshow of pictures with infrared remote control of playback.
+
+'''
+
 import os
 import time
 import random
@@ -36,7 +46,22 @@ class PhotoFrame:
         self.picture_slide = None
         # Background picture that foreground fades over
         self.background_slide = None
-        
+    
+    # Resize the current picture to fit the slide (I have no idea how this works)
+    def _resize_slide(self):
+        self.SLIDE.unif[45:47] = self.SLIDE.unif[42:44]  # transfer front width and height factors to back
+        self.SLIDE.unif[51:53] = self.SLIDE.unif[48:50]  # transfer front width and height offsets
+        wh_rat = (self.DISPLAY.width * self.picture_slide.iy) / (self.DISPLAY.height * self.picture_slide.ix)
+        if (wh_rat > 1.0 and Constants.FIT) or (wh_rat <= 1.0 and not Constants.FIT):
+            sz1, sz2, os1, os2 = 42, 43, 48, 49
+        else:
+            sz1, sz2, os1, os2 = 43, 42, 49, 48
+            wh_rat = 1.0 / wh_rat
+        self.SLIDE.unif[sz1] = wh_rat
+        self.SLIDE.unif[sz2] = 1.0
+        self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
+        self.SLIDE.unif[os2] = 0.0
+                
     # Create the display and start the play loop
     def play(self):
         self._create()
@@ -79,19 +104,8 @@ class PhotoFrame:
 
                 self.SLIDE.set_textures([self.picture_slide, self.background_slide])
                 
-                # TODO: Split this ugliness into a separate method
-                self.SLIDE.unif[45:47] = self.SLIDE.unif[42:44]  # transfer front width and height factors to back
-                self.SLIDE.unif[51:53] = self.SLIDE.unif[48:50]  # transfer front width and height offsets
-                wh_rat = (self.DISPLAY.width * self.picture_slide.iy) / (self.DISPLAY.height * self.picture_slide.ix)
-                if (wh_rat > 1.0 and Constants.FIT) or (wh_rat <= 1.0 and not Constants.FIT):
-                    sz1, sz2, os1, os2 = 42, 43, 48, 49
-                else:
-                    sz1, sz2, os1, os2 = 43, 42, 49, 48
-                    wh_rat = 1.0 / wh_rat
-                self.SLIDE.unif[sz1] = wh_rat
-                self.SLIDE.unif[sz2] = 1.0
-                self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
-                self.SLIDE.unif[os2] = 0.0
+                # Resize the picture to fit the slide
+                self._resize_slide()
 
             # BUG: Background slides still show through slightly. Lower FPS makes it worse?
             # Fade alpha in
@@ -222,19 +236,14 @@ def _fix_rotation(image):
     # If the image doesn't have a _getexif method, it isn't valid
     except AttributeError:
         raise ValueError('Exif data could not be recovered from {}. Please confirm that it is a valid PIL Image.'.format(image))
+
     try:
         orientation_value = exif_data[Constants.EXIF_ORIENTATION_TAG]
-    # If the image's exif data doesn't have an orientation value
-    except (IndexError, TypeError, KeyError):
-        return image
-
-    try:
         rotated_image = image.rotate(Constants.EXIF_ORIENTATION_DICT[orientation_value], expand=True)
-    # If the orientation value isn't in the dictionary keys, it is either invalid or not rotated
-    except KeyError:
+        return rotated_image
+    # If the image doesn't have exif data or the orientation value isn't in the dictionary keys
+    except (KeyError, TypeError, IndexError):
         return image
-
-    return rotated_image
 
 
 # Load a picture as a PIL image, correct rotation, and return it
