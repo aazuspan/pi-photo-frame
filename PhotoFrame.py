@@ -84,6 +84,14 @@ def load_picture(picture_path):
     return picture
 
 
+# Add a text message to the screen
+def text_message(message):
+    textblock.set_text(str(message))
+    textblock.colouring.set_colour(alpha=1.0)
+    text.regen()
+    text.draw()
+    
+    
 def toggle_pause():
     global paused
     paused = not paused
@@ -99,6 +107,7 @@ def prev_slide(next_pic_num):
         next_pic_num = -1
     return next_pic_num
 
+
 # Initialize the socket that receives IR remote signals
 IRW = IRW()
 
@@ -109,7 +118,15 @@ shader = pi3d.Shader("blend_new")
 slide = pi3d.Sprite(camera=CAMERA, w=DISPLAY.width, h=DISPLAY.height, z=5.0)
 slide.set_shader(shader)
 slide.unif[47] = Constants.EDGE_ALPHA
-#KEYBOARD = pi3d.Keyboard()
+
+
+font = pi3d.Font(Constants.FONT_FILE, codepoints=Constants.CODEPOINTS, grid_size=7, shadow_radius=4.0,
+                 shadow=(0,0,0,128))
+text = pi3d.PointText(font, CAMERA, max_chars=200, point_size=50)
+textblock = pi3d.TextBlock(x=-DISPLAY.width * 0.5 + 50, y=-DISPLAY.height * 0.4,
+                           z=0.1, rot=0.0, char_count=199, size=0.99, text_format="{}".format(1),
+                           spacing="F", space=0.02, colour=(1.0, 1.0, 1.0, 1.0))
+text.add_text_block(textblock)
 
 pic_list, number_pictures = get_files()
 if not pic_list:
@@ -119,8 +136,6 @@ if not pic_list:
 next_time = 0.0
 # List index of the next picture
 next_pic_num = 0
-# Number of times the entire picture list has been shown
-loop_num = 0
 
 picture_slide = None
 background_slide = None
@@ -149,11 +164,9 @@ while DISPLAY.loop_running():
             if next_pic_num >= len(pic_list):
                 # Restart list
                 next_pic_num = 0
-                loop_num += 1
 
                 # Reshuffle if requested
-                if shuffle and loop_num >= Constants.RESHUFFLE_AFTER:
-                    loop_num = 0
+                if shuffle:
                     random.shuffle(pic_list)
 
         # First run through
@@ -184,36 +197,33 @@ while DISPLAY.loop_running():
 
     # Check for IR remote signals
     command = IRW.get_key()
-    #command = None
+
+    # TODO: Allow navigating next and previous even if paused
     # If an IR remote signal is detected
     if command:
-        print(command)
         # Toggle pause
         if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
+            if paused:
+                text_message('PLAY')
+            else:
+                text_message('PAUSE')
             toggle_pause()
         # Previous slide
         elif command in ['KEY_LEFT', 'KEY_REWIND']:
+            text_message('PREVIOUS')
+            # Set the previous slide as next
             next_pic_num = prev_slide(next_pic_num)
+            # Go to it immediately
+            next_time = next_slide()
         # Next slide
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
+            text_message('NEXT')
             next_time = next_slide()
         # Exit slideshow
         elif command in ['KEY_EXIT', 'KEY_STOP']:
             break
 
-    #key = KEYBOARD.read()
-    key = -1
-    if key != -1:
-        next_time = next_slide()
-    # Exit condition
-    if key == 27 or quit:
-        break
-    # Toggle play/pause
-    if key == ord(' '):
-        toggle_pause()
-    # Previous slide
-    if key == ord('s'):
-        next_pic_num = prev_slide(next_pic_num)
 
-KEYBOARD.close()
+
+# BUG: Display is not destroying
 DISPLAY.destroy()

@@ -15,7 +15,7 @@ import select
 
 
 class IRW:
-    def __init__(self, socket_path="/var/run/lirc/lircd", timeout=0.1, blocking=1):
+    def __init__(self, socket_path="/var/run/lirc/lircd", timeout=0.01, blocking=0):
         self._socket_path = socket_path
         # How long to look for data each call (longer values will slow down the rest of the program, but are less likely to miss commands)
         self._timeout = timeout
