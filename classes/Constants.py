@@ -3,13 +3,14 @@ from pathlib import Path
 
 
 class Constants:
-    HOME_DIR = str(Path.home())
-    PIC_DIR = os.path.join(HOME_DIR, 'Pictures')
+    PIC_DIR = os.path.join('/media', 'pi', 'MYKEYCHAIN')
     FONT_FILE = os.path.join('fonts', 'NotoSans-Regular.ttf')
 
-    FPS = 20
+    # Determines how smooth fades are
+    FPS = 10
     FIT = True
-    EDGE_ALPHA = 0
+    # Amount of image reflection on the background
+    EDGE_ALPHA = 0.0
     BACKGROUND_COLOR = (0, 0, 0, 1)
     CODEPOINTS = '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ., _-/'
 

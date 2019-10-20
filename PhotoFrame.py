@@ -79,6 +79,7 @@ class PhotoFrame:
 
                 self.SLIDE.set_textures([self.picture_slide, self.background_slide])
                 
+                # TODO: Split this ugliness into a separate method
                 self.SLIDE.unif[45:47] = self.SLIDE.unif[42:44]  # transfer front width and height factors to back
                 self.SLIDE.unif[51:53] = self.SLIDE.unif[48:50]  # transfer front width and height offsets
                 wh_rat = (self.DISPLAY.width * self.picture_slide.iy) / (self.DISPLAY.height * self.picture_slide.ix)
@@ -92,6 +93,7 @@ class PhotoFrame:
                 self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
                 self.SLIDE.unif[os2] = 0.0
 
+            # BUG: Background slides still show through slightly. Lower FPS makes it worse?
             # Fade alpha in
             if alpha < 1.0:
                 alpha += self._delta_alpha
