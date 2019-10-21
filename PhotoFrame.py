@@ -4,7 +4,8 @@ Digital Photo Frame
 Created by Aaron Zuspan, October 2019
 Based on pi3d demos https://github.com/pi3d/pi3d_demos
 
-Controls a 2d slideshow of pictures with infrared remote control of playback.
+Controls a 2d slideshow of pictures with infrared remote control of playback
+and motion-controlled sleep mode.
 
 '''
 
@@ -41,6 +42,8 @@ class PhotoFrame:
         self.pic_num = 0
         # List index of the next picture
         self.next_pic_num = 0
+        # Last time motion was detected. Compared with SLEEP_AFTER to initiate sleep mode
+        self.last_motion_time = 0
 
         # Foreground picture
         self.picture_slide = None
@@ -62,11 +65,17 @@ class PhotoFrame:
         self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
         self.SLIDE.unif[os2] = 0.0
 
-    # Turn HDMI off to put display monitor to sleep
+    # Turn HDMI off to put display monitor to sleep. Stay in this loop until motion is detected
     def sleep(self):
         # Turn HDMI output off
         os.system("vcgencmd display_power 0")
-        
+        # Wait until motion is detected, checking every second
+        while not self._is_motion_detected():
+            time.sleep(1)
+        # Once motion is detected
+        self.wake()
+
+    # Wake the display up by turning HDMI back on
     def wake(self):
         # Turn HDMI output on
         os.system("vcgencmd display_power 1")
@@ -75,6 +84,18 @@ class PhotoFrame:
     def play(self):
         self._create()
         self._play_loop()
+
+    # Check if motion is detected and react accordingly
+    def check_motion(self):
+        if self._is_motion_detected():
+            self.last_motion_time = time.time()
+        elif self.current_time - self.last_motion_time > Constants.SLEEP_AFTER_SECONDS:
+            self.sleep()
+
+    # Check a motion sensor for motion at this moment and return boolean
+    def _is_motion_detected(self):
+        # TODO: Implement this check once hardware arrives
+        return True
     
     # The main playback loop where slides are selected and played
     def _play_loop(self):
@@ -128,9 +149,12 @@ class PhotoFrame:
             if self._paused:
                 # BUG: When play is pressed, pause text still shows over it
                 self.TEXT.draw()
-            
+
+            # Check for IR remote commands and react
             self.handle_commands()
-    
+            # Check for motion and react
+            self.check_motion()
+
     # Stop the playback loop and kill the display
     def stop(self):
         self.DISPLAY.destroy()
