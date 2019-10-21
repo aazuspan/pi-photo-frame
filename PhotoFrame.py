@@ -61,7 +61,16 @@ class PhotoFrame:
         self.SLIDE.unif[sz2] = 1.0
         self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
         self.SLIDE.unif[os2] = 0.0
-                
+
+    # Turn HDMI off to put display monitor to sleep
+    def sleep(self):
+        # Turn HDMI output off
+        os.system("vcgencmd display_power 0")
+        
+    def wake(self):
+        # Turn HDMI output on
+        os.system("vcgencmd display_power 1")
+
     # Create the display and start the play loop
     def play(self):
         self._create()
