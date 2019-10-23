@@ -55,7 +55,6 @@ if __name__ == '__main__':
     irw = IRW()
 
     while True:
-        print('test')
         command = irw.get_key()
         if command:
             print(command)

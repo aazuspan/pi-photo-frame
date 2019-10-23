@@ -3,11 +3,11 @@ from pathlib import Path
 
 
 class Constants:
-    PIC_DIR = os.path.join('/media', 'pi', 'MYKEYCHAIN')
-    FONT_FILE = os.path.join('fonts', 'NotoSans-Regular.ttf')
+    PIC_DIR = os.path.join('/media', 'photo_usb')
+    FONT_FILE = os.path.join('/home', 'pi', 'DigitalPhotoFrame', 'fonts', 'NotoSans-Regular.ttf')
 
     # Determines how smooth fades are
-    FPS = 10
+    FPS = 20
     FIT = True
     # Amount of image reflection on the background
     EDGE_ALPHA = 0.0

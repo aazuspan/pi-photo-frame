@@ -12,6 +12,7 @@ and motion-controlled sleep mode.
 import os
 import time
 import random
+import logging
 import pi3d
 from PIL import Image
 from classes.Constants import Constants
@@ -19,11 +20,15 @@ from classes.IRW import IRW
 
 
 class PhotoFrame:
-    def __init__(self, time_delay=5, fade_time=1, shuffle=True):
+    def __init__(self, time_delay=30, fade_time=2, shuffle=True):
+        logging.debug('INITIALIZING NEW PHOTO FRAME')
+        # Time between frames
         self.time_delay = time_delay
         self.fade_time = fade_time
+        # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
         self._paused = False
+        # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (Constants.FPS * self.fade_time)
         
         self._file_list, self._num_files = self._get_files()
@@ -67,6 +72,7 @@ class PhotoFrame:
 
     # Turn HDMI off to put display monitor to sleep. Stay in this loop until motion is detected
     def sleep(self):
+        logging.debug('Entering sleep mode')
         # Turn HDMI output off
         os.system("vcgencmd display_power 0")
         # Wait until motion is detected, checking every second
@@ -77,11 +83,13 @@ class PhotoFrame:
 
     # Wake the display up by turning HDMI back on
     def wake(self):
+        logging.debug('Waking from sleep mode')
         # Turn HDMI output on
         os.system("vcgencmd display_power 1")
 
     # Create the display and start the play loop
     def play(self):
+        logging.debug('Initiating play loop')
         self._create()
         self._play_loop()
 
@@ -161,6 +169,7 @@ class PhotoFrame:
     
     # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
+        logging.debug('Creating pi3d components')
         self.DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
                                       background=Constants.BACKGROUND_COLOR)
         self.CAMERA = pi3d.Camera(is_3d=False)
@@ -180,6 +189,7 @@ class PhotoFrame:
     
     # Get and return a list of files from the picture directory
     def _get_files(self):
+        logging.debug('Collecting files')
         file_list = []
         extensions_list = ['.png', '.jpg', '.jpeg']
 
@@ -190,6 +200,7 @@ class PhotoFrame:
 
                 if ext in extensions_list and not filename.startswith('.'):
                     file_path_name = os.path.join(root, filename)
+                    logging.debug('Adding {} to file list'.format(file_path_name))
                     file_list.append(file_path_name)
 
         if self.shuffle:
@@ -209,14 +220,17 @@ class PhotoFrame:
         self.TEXT.draw()
         
     def toggle_pause(self):
+        logging.debug('Toggling pause')
         self._paused = not self._paused
 
     # Advance time to immediately go to the next slide in line (forward or backward)
     def next_slide(self):
+        logging.debug('Skipping to next slide')
         self.next_time = time.time() - 1.0
 
     # Change slide order to go to previous slide as next slide
     def prev_slide(self):
+        logging.debug('Navigating to previous slide')
         self.next_pic_num -= 2
         if self.next_pic_num < -1:
             self.next_pic_num = -1
@@ -229,6 +243,7 @@ class PhotoFrame:
         # TODO: Allow navigating next and previous even if paused
         # If an IR remote signal is detected
         if command:
+            logging.debug('IR command received: {}'.format(command))
             # Toggle pause
             if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
                 if self._paused:
@@ -254,6 +269,7 @@ class PhotoFrame:
 
 # Load a file or PIL Image as a texture object
 def texture_load(filename):
+    logging.debug('Loading texture from {}'.format(filename))
     try:
         texture = pi3d.Texture(filename, blend=True, m_repeat=True)
     except Exception:
@@ -281,6 +297,7 @@ def _fix_rotation(image):
 
 # Load a picture as a PIL image, correct rotation, and return it
 def load_picture(picture_path):
+    logging.debug('Loading picture {}'.format(picture_path))
     picture = Image.open(picture_path)
     # Rotate the picture based on EXIF data if necessary
     picture = _fix_rotation(picture)
@@ -289,5 +306,6 @@ def load_picture(picture_path):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(filename='frameLog.log', format='%(asctime)s %(levelname)s: %(message)s', level=logging.DEBUG)
     frame = PhotoFrame()
     frame.play()
