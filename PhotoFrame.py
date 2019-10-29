@@ -14,6 +14,7 @@ import time
 import random
 import logging
 import pi3d
+from gpiozero import MotionSensor
 from PIL import Image
 from classes.Constants import Constants
 from classes.IRW import IRW
@@ -28,6 +29,10 @@ class PhotoFrame:
         # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
         self._paused = False
+        # Create a motion sensor on GPIO pin 4. Queue_len determines sensitivity (more = less sensitive)
+        self.motionsensor = MotionSensor(4, queue_len=30)
+        # Minimum number of motion pulses to count as valid motion (to avoid false positives)
+        self.motion_threshold = 50000
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (Constants.FPS * self.fade_time)
         
@@ -40,7 +45,7 @@ class PhotoFrame:
         self.IRW = IRW()
         
         # Current time, used to decide when to change slides
-        self.current_time = 0.0
+        self.current_time = time.time()
         # Time when the next picture will be displayed
         self.next_time = 0.0
         # List index of current picture
@@ -48,7 +53,7 @@ class PhotoFrame:
         # List index of the next picture
         self.next_pic_num = 0
         # Last time motion was detected. Compared with SLEEP_AFTER to initiate sleep mode
-        self.last_motion_time = 0
+        self.last_motion_time = time.time()
 
         # Foreground picture
         self.picture_slide = None
@@ -75,36 +80,48 @@ class PhotoFrame:
         logging.debug('Entering sleep mode')
         # Turn HDMI output off
         os.system("vcgencmd display_power 0")
-        # Wait until motion is detected, checking every second
-        while not self._is_motion_detected():
-            time.sleep(1)
-        # Once motion is detected
-        self.wake()
 
+        while True:
+            if self.motionsensor.motion_detected:
+                # Check if the motion lasts long enough to be counted as real motion
+                if self._is_significant_motion():
+                    self.wake()
+                    break
+	
     # Wake the display up by turning HDMI back on
     def wake(self):
         logging.debug('Waking from sleep mode')
         # Turn HDMI output on
         os.system("vcgencmd display_power 1")
+        self.last_motion_time = time.time()
 
     # Create the display and start the play loop
     def play(self):
         logging.debug('Initiating play loop')
+        # Activate HDMI on the Pi
+        os.system("vcgencmd display_power 1")
         self._create()
         self._play_loop()
-
-    # Check if motion is detected and react accordingly
+    
+    # Check if motion is detected and decide whether to go to sleep
     def check_motion(self):
-        if self._is_motion_detected():
-            self.last_motion_time = time.time()
+        if self.motionsensor.motion_detected:
+            if self._is_significant_motion():
+                self.last_motion_time = time.time()
         elif self.current_time - self.last_motion_time > Constants.SLEEP_AFTER_SECONDS:
             self.sleep()
 
-    # Check a motion sensor for motion at this moment and return boolean
-    def _is_motion_detected(self):
-        # TODO: Implement this check once hardware arrives
-        return True
-    
+    # Called when motion is detected. Return whether the motion lasts long enough to meet the threshold
+    def _is_significant_motion(self):
+        motion_count = 0
+        while self.motionsensor.motion_detected:
+            motion_count += 1
+            # Interrupt the check loop as soon as the threshold is met
+            if motion_count > self.motion_threshold:
+                return True
+        # Motion threshold wasn't met
+        return False
+
     # The main playback loop where slides are selected and played
     def _play_loop(self):
         while self.DISPLAY.loop_running():
@@ -200,7 +217,6 @@ class PhotoFrame:
 
                 if ext in extensions_list and not filename.startswith('.'):
                     file_path_name = os.path.join(root, filename)
-                    logging.debug('Adding {} to file list'.format(file_path_name))
                     file_list.append(file_path_name)
 
         if self.shuffle:
