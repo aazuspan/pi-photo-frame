@@ -22,11 +22,8 @@ from classes.IRW import IRW
 # TODO: Separate all constants into constants class
 # TODO: Improve logging by implementing info logs so debug logs in pi3d can be ignored
 class PhotoFrame:
-    def __init__(self, time_delay=30, fade_time=2, shuffle=True):
+    def __init__(self, shuffle=True):
         logging.info('INITIALIZING NEW PHOTO FRAME')
-        # Time between frames
-        self.time_delay = time_delay
-        self.fade_time = fade_time
         # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
         self._paused = False
@@ -35,7 +32,7 @@ class PhotoFrame:
         # Minimum number of motion pulses to count as valid motion (to avoid false positives)
         self.motion_threshold = 50000
         # Amount of alpha to fade every frame when fading in new photo
-        self._delta_alpha = 1.0 / (Constants.FPS * self.fade_time)
+        self._delta_alpha = 1.0 / (Constants.FPS * Constants.TIME_FADE)
         
         self._file_list, self._num_files = self._get_files()
         
@@ -129,7 +126,7 @@ class PhotoFrame:
         while self.DISPLAY.loop_running():
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
-                self.next_time = self.current_time + self.time_delay
+                self.next_time = self.current_time + Constants.TIME_DELAY
                 # Proportion of front image to back
                 alpha = 0.0
 
