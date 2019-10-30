@@ -19,10 +19,11 @@ from PIL import Image
 from classes.Constants import Constants
 from classes.IRW import IRW
 
-
+# TODO: Separate all constants into constants class
+# TODO: Improve logging by implementing info logs so debug logs in pi3d can be ignored
 class PhotoFrame:
     def __init__(self, time_delay=30, fade_time=2, shuffle=True):
-        logging.debug('INITIALIZING NEW PHOTO FRAME')
+        logging.info('INITIALIZING NEW PHOTO FRAME')
         # Time between frames
         self.time_delay = time_delay
         self.fade_time = fade_time
@@ -77,7 +78,7 @@ class PhotoFrame:
 
     # Turn HDMI off to put display monitor to sleep. Stay in this loop until motion is detected
     def sleep(self):
-        logging.debug('Entering sleep mode')
+        logging.info('Entering sleep mode')
         # Turn HDMI output off
         os.system("vcgencmd display_power 0")
 
@@ -90,19 +91,20 @@ class PhotoFrame:
 	
     # Wake the display up by turning HDMI back on
     def wake(self):
-        logging.debug('Waking from sleep mode')
+        logging.info('Waking from sleep mode')
         # Turn HDMI output on
         os.system("vcgencmd display_power 1")
         self.last_motion_time = time.time()
 
     # Create the display and start the play loop
     def play(self):
-        logging.debug('Initiating play loop')
+        logging.info('Initiating play loop')
         # Activate HDMI on the Pi
         os.system("vcgencmd display_power 1")
         self._create()
         self._play_loop()
-    
+
+    # TODO: Make this work with the sleep check to avoid repeating code
     # Check if motion is detected and decide whether to go to sleep
     def check_motion(self):
         if self.motionsensor.motion_detected:
@@ -186,7 +188,7 @@ class PhotoFrame:
     
     # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
-        logging.debug('Creating pi3d components')
+        logging.info('Creating pi3d components')
         self.DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
                                       background=Constants.BACKGROUND_COLOR)
         self.CAMERA = pi3d.Camera(is_3d=False)
@@ -206,7 +208,7 @@ class PhotoFrame:
     
     # Get and return a list of files from the picture directory
     def _get_files(self):
-        logging.debug('Collecting files')
+        logging.info('Collecting files')
         file_list = []
         extensions_list = ['.png', '.jpg', '.jpeg']
 
@@ -236,17 +238,14 @@ class PhotoFrame:
         self.TEXT.draw()
         
     def toggle_pause(self):
-        logging.debug('Toggling pause')
         self._paused = not self._paused
 
     # Advance time to immediately go to the next slide in line (forward or backward)
     def next_slide(self):
-        logging.debug('Skipping to next slide')
         self.next_time = time.time() - 1.0
 
     # Change slide order to go to previous slide as next slide
     def prev_slide(self):
-        logging.debug('Navigating to previous slide')
         self.next_pic_num -= 2
         if self.next_pic_num < -1:
             self.next_pic_num = -1
@@ -259,7 +258,7 @@ class PhotoFrame:
         # TODO: Allow navigating next and previous even if paused
         # If an IR remote signal is detected
         if command:
-            logging.debug('IR command received: {}'.format(command))
+            logging.info('IR command received: {}'.format(command))
             # Toggle pause
             if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
                 if self._paused:
@@ -313,7 +312,7 @@ def _fix_rotation(image):
 
 # Load a picture as a PIL image, correct rotation, and return it
 def load_picture(picture_path):
-    logging.debug('Loading picture {}'.format(picture_path))
+    logging.info('Loading picture {}'.format(picture_path))
     picture = Image.open(picture_path)
     # Rotate the picture based on EXIF data if necessary
     picture = _fix_rotation(picture)
@@ -322,6 +321,6 @@ def load_picture(picture_path):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='frameLog.log', format='%(asctime)s %(levelname)s: %(message)s', level=logging.DEBUG)
+    logging.basicConfig(filename='frameLog.log', filemode='w', format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
     frame = PhotoFrame()
     frame.play()
