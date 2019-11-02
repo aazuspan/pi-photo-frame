@@ -7,6 +7,9 @@ Based on pi3d demos https://github.com/pi3d/pi3d_demos
 Controls a 2d slideshow of pictures with infrared remote control of playback
 and motion-controlled sleep mode.
 
+GPIO pins:
+    Pin 15: PIR motion sensor
+    Pin 18: IR receiver (defined in LIRC settings)
 '''
 
 import os
@@ -20,15 +23,14 @@ from classes.Constants import Constants
 from classes.IRW import IRW
 
 # TODO: Separate all constants into constants class
-# TODO: Improve logging by implementing info logs so debug logs in pi3d can be ignored
 class PhotoFrame:
     def __init__(self, shuffle=True):
         logging.info('INITIALIZING NEW PHOTO FRAME')
         # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
         self._paused = False
-        # Create a motion sensor on GPIO pin 4. Queue_len determines sensitivity (more = less sensitive)
-        self.motionsensor = MotionSensor(4, queue_len=30)
+        # Create a motion sensor on GPIO pin 15. Queue_len determines sensitivity (more = less sensitive)
+        self.motionsensor = MotionSensor(15, queue_len=30)
         # Minimum number of motion pulses to count as valid motion (to avoid false positives)
         self.motion_threshold = 50000
         # Amount of alpha to fade every frame when fading in new photo
@@ -161,11 +163,16 @@ class PhotoFrame:
                 # Resize the picture to fit the slide
                 self._resize_slide()
 
-            # BUG: Background slides still show through slightly. Lower FPS makes it worse?
-            # Fade alpha in
+            # Fade alpha in and ignore remote and motion
             if alpha < 1.0:
                 alpha += self._delta_alpha
                 self.SLIDE.unif[44] = alpha
+
+            else:
+                # Check for IR remote commands and react
+                self.handle_commands()
+                # Check for motion and react
+                self.check_motion()
 
             self.SLIDE.draw()
             
@@ -173,11 +180,6 @@ class PhotoFrame:
             if self._paused:
                 # BUG: When play is pressed, pause text still shows over it
                 self.TEXT.draw()
-
-            # Check for IR remote commands and react
-            self.handle_commands()
-            # Check for motion and react
-            self.check_motion()
 
     # Stop the playback loop and kill the display
     def stop(self):
@@ -309,7 +311,7 @@ def _fix_rotation(image):
 
 # Load a picture as a PIL image, correct rotation, and return it
 def load_picture(picture_path):
-    logging.info('Loading picture {}'.format(picture_path))
+    logging.debug('Loading picture {}'.format(picture_path))
     picture = Image.open(picture_path)
     # Rotate the picture based on EXIF data if necessary
     picture = _fix_rotation(picture)
