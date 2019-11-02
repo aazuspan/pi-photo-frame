@@ -183,9 +183,32 @@ class PhotoFrame:
                 # BUG: When play is pressed, pause text still shows over it
                 self.TEXT.draw()
 
-    # Stop the playback loop and kill the display
+    # Check if exit key is hit enough times to stop the program
+    def is_exit_confirmed(self):
+        # Time when the exit check starts
+        start_time = time.time()
+        # How long will exit keys be accepted for?
+        check_seconds = 2
+        # Number of times exit key has been hit
+        current_exit_count = 0
+        # Number of times exit key must be hit to close (not counting the exit key that triggered this check)
+        required_exit_count = 2
+
+        # Check time
+        while time.time() < start_time + check_seconds:
+            # Look for IR commands
+            command = self.IRW.get_key()
+            if command == 'KEY_EXIT':
+                current_exit_count += 1
+                if current_exit_count >= required_exit_count:
+                    return True
+        # Check time passed without exit key being hit enough
+        return False
+
+    # End the program
     def stop(self):
         self.DISPLAY.destroy()
+
     
     # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
@@ -282,7 +305,9 @@ class PhotoFrame:
                 self.sleep()
             # Exit slideshow
             elif command == 'KEY_EXIT':
-                self.stop()
+                # If the exit key is pressed repeatedly
+                if self.is_exit_confirmed():
+                    self.stop()
     
 
 # Load a file or PIL Image as a texture object
