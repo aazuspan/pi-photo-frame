@@ -163,15 +163,15 @@ class PhotoFrame:
                 # Resize the picture to fit the slide
                 self._resize_slide()
 
-            # BUG: Background images will show through foreground images sometimes
             # BUG: "PREVIOUS" will show through when you go back and forth between slides
-            # Fade alpha in and ignore remote and motion
-            if alpha < 1.0:
+            # Fade alpha in (avoid overshooting 1.0) and ignore remote and motion
+            if alpha + self._delta_alpha < 1.0:
                 alpha += self._delta_alpha
                 self.SLIDE.unif[44] = alpha
-
             else:
-	        # Check for IR remote commands and react
+                # Set alpha to fully opaque once fade is finished
+                self.SLIDE.unif[44] = 1.0
+                # Check for IR remote commands and react
                 self.handle_commands()
                 # Check for motion and react
                 self.check_motion()
