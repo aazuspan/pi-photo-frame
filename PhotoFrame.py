@@ -351,4 +351,10 @@ def load_picture(picture_path):
 if __name__ == "__main__":
     logging.basicConfig(filename='frameLog.log', filemode='w', format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
     frame = PhotoFrame(shuffle=True)
-    frame.play()
+    try:
+        frame.play()
+    # If the program is killed by keyboard, or a bug occurs, make sure the display is awake
+    except (KeyboardInterrupt, Exception):
+        logging.exception('Fatal error!')
+        frame.wake()
+
