@@ -1,4 +1,5 @@
 import os
+import datetime
 from pathlib import Path
 
 
@@ -20,9 +21,12 @@ class Constants:
     EXIF_ORIENTATION_DICT = {3: 180, 4: 180, 5: 270, 6: 270, 7: 90, 8: 90}
 
     # Turn off display after this many seconds without detecting motion
-    SLEEP_AFTER_SECONDS = 1800
+    SLEEP_AFTER_SECONDS = 1200
     
     # Seconds between slides
     TIME_DELAY = 40
     # Seconds of fade time
-    TIME_FADE = 2
+    TIME_FADE = 1.5
+    
+    # Prevent the display from waking up between midnight and this time
+    SLEEP_UNTIL_TIME = datetime.time(6, 00)

@@ -14,6 +14,7 @@ GPIO pins:
 
 import os
 import time
+import datetime
 import random
 import logging
 import pi3d
@@ -89,11 +90,16 @@ class PhotoFrame:
                     break
 	
     # Wake the display up by turning HDMI back on
-    def wake(self):
-        logging.info('Waking from sleep mode')
-        # Turn HDMI output on
-        os.system("vcgencmd display_power 1")
-        self.last_motion_time = time.time()
+    def wake(self, force=False):
+        current_time = datetime.datetime.now().time()
+        # Check if the time is after the specified sleep window (can be overridden by force)
+        if current_time >= Constants.SLEEP_UNTIL_TIME or force:
+            logging.info('Waking from sleep mode')
+            # Turn HDMI output on
+            os.system("vcgencmd display_power 1")
+            self.last_motion_time = time.time()
+        else:
+            logging.info('Tried to wake from sleep mode but current time is within the sleep_until time.')
 
     # Create the display and start the play loop
     def play(self):
@@ -349,12 +355,15 @@ def load_picture(picture_path):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='frameLog.log', filemode='w', format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
+    logging.basicConfig(filename='frameLog.log', filemode='a', format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
     frame = PhotoFrame(shuffle=True)
     try:
         frame.play()
     # If the program is killed by keyboard, or a bug occurs, make sure the display is awake
-    except (KeyboardInterrupt, Exception):
-        logging.exception('Fatal error!')
-        frame.wake()
+    except (KeyboardInterrupt, Exception) as e:
+        if e == Exception:
+            logging.exception('Fatal error!')
+        else:
+            logging.info('Keyboard interrupt')
+        frame.wake(force=True)
 
