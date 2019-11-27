@@ -30,3 +30,6 @@ class Constants:
     
     # Prevent the display from waking up between midnight and this time
     SLEEP_UNTIL_TIME = datetime.time(6, 00)
+
+    # Minimum number of motion pulses to count as valid motion (to avoid false positives)
+    MOTION_THRESHOLD = 50000

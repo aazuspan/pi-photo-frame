@@ -24,7 +24,6 @@ from classes.Constants import Constants
 from classes.IRW import IRW
 
 
-# TODO: Separate all constants into constants class
 class PhotoFrame:
     def __init__(self, shuffle=True):
         logging.info('INITIALIZING NEW PHOTO FRAME')
@@ -34,8 +33,6 @@ class PhotoFrame:
         self.is_awake = True
         # Create a motion sensor on GPIO pin 15. Queue_len determines sensitivity (more = less sensitive)
         self.motionsensor = MotionSensor(15, queue_len=30)
-        # Minimum number of motion pulses to count as valid motion (to avoid false positives)
-        self.motion_threshold = 50000
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (Constants.FPS * Constants.TIME_FADE)
         
@@ -133,7 +130,7 @@ class PhotoFrame:
         while self.motionsensor.motion_detected:
             motion_count += 1
             # Interrupt the check loop as soon as the threshold is met
-            if motion_count > self.motion_threshold:
+            if motion_count > Constants.MOTION_THRESHOLD:
                 return True
         # Motion threshold wasn't met
         return False
