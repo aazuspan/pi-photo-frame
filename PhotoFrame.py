@@ -23,6 +23,7 @@ from PIL import Image
 from classes.Constants import Constants
 from classes.IRW import IRW
 
+
 # TODO: Separate all constants into constants class
 class PhotoFrame:
     def __init__(self, shuffle=True):
@@ -30,6 +31,7 @@ class PhotoFrame:
         # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
         self._paused = False
+        self.is_awake = True
         # Create a motion sensor on GPIO pin 15. Queue_len determines sensitivity (more = less sensitive)
         self.motionsensor = MotionSensor(15, queue_len=30)
         # Minimum number of motion pulses to count as valid motion (to avoid false positives)
@@ -78,25 +80,29 @@ class PhotoFrame:
 
     # Turn HDMI off to put display monitor to sleep. Stay in this loop until motion is detected
     def sleep(self):
+        self.is_awake = False
         logging.info('Entering sleep mode')
         # Turn HDMI output off
         os.system("vcgencmd display_power 0")
 
-        while True:
-            if self.motionsensor.motion_detected:
-                # Check if the motion lasts long enough to be counted as real motion
-                if self._is_significant_motion():
-                    self.wake()
-                    break
-	
+        # Continue sleeping until motion is detected
+        while not self.is_awake:
+            self.handle_commands()
+
+            if self.is_significant_motion_detected():
+                self.wake()
+                break
+
     # Wake the display up by turning HDMI back on
     def wake(self, force=False):
         current_time = datetime.datetime.now().time()
         # Check if the time is after the specified sleep window (can be overridden by force)
         if current_time >= Constants.SLEEP_UNTIL_TIME or force:
+            self.is_awake = True
             logging.info('Waking from sleep mode')
             # Turn HDMI output on
             os.system("vcgencmd display_power 1")
+            # Update motion time so it doesn't immediately go back to sleep
             self.last_motion_time = time.time()
         else:
             logging.info('Tried to wake from sleep mode but current time is within the sleep_until time.')
@@ -109,17 +115,19 @@ class PhotoFrame:
         self._create()
         self._play_loop()
 
-    # TODO: Make this work with the sleep check to avoid repeating code
-    # Check if motion is detected and decide whether to go to sleep
-    def check_motion(self):
-        if self.motionsensor.motion_detected:
-            if self._is_significant_motion():
-                self.last_motion_time = time.time()
-        elif self.current_time - self.last_motion_time > Constants.SLEEP_AFTER_SECONDS:
-            self.sleep()
+    # Check for motion and update last motion time if detected
+    def update_motion_time(self):
+        if self.is_significant_motion_detected():
+            self.last_motion_time = time.time()
+
+    # Check last motion time and decide whether it is time to sleep
+    def is_time_to_sleep(self):
+        if self.current_time - self.last_motion_time > Constants.SLEEP_AFTER_SECONDS:
+            return True
+        return False
 
     # Called when motion is detected. Return whether the motion lasts long enough to meet the threshold
-    def _is_significant_motion(self):
+    def is_significant_motion_detected(self):
         motion_count = 0
         while self.motionsensor.motion_detected:
             motion_count += 1
@@ -174,14 +182,19 @@ class PhotoFrame:
             if alpha + self._delta_alpha < 1.0:
                 alpha += self._delta_alpha
                 self.SLIDE.unif[44] = alpha
+            # Alpha transition is over
             else:
                 # Set alpha to fully opaque once fade is finished
                 self.SLIDE.unif[44] = 1.0
                 # Check for IR remote commands and react
                 self.handle_commands()
-                # Check for motion and react
-                self.check_motion()
+                # Check for motion and update the last motion time
+                self.update_motion_time()
+                # Decide whether to sleep based on last motion time and current time
+                if self.is_time_to_sleep():
+                    self.sleep()
 
+            # Draw the current contents of the frame
             self.SLIDE.draw()
             
             # Paused text should stay on screen while paused
@@ -215,7 +228,6 @@ class PhotoFrame:
     def stop(self):
         self.DISPLAY.destroy()
 
-    
     # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
         logging.info('Creating pi3d components')
@@ -333,7 +345,8 @@ def _fix_rotation(image):
         exif_data = image._getexif()
     # If the image doesn't have a _getexif method, it isn't valid
     except AttributeError:
-        raise ValueError('Exif data could not be recovered from {}. Please confirm that it is a valid PIL Image.'.format(image))
+        raise ValueError('Exif data could not be recovered from {}. Please confirm that it is a valid PIL Image.'.
+                         format(image))
 
     try:
         orientation_value = exif_data[Constants.EXIF_ORIENTATION_TAG]
@@ -355,7 +368,11 @@ def load_picture(picture_path):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='frameLog.log', filemode='a', format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO)
+    logging.basicConfig(filename='frameLog.log',
+                        filemode='a',
+                        format='%(asctime)s %(levelname)s: %(message)s',
+                        level=logging.INFO)
+
     frame = PhotoFrame(shuffle=True)
     try:
         frame.play()
@@ -366,4 +383,3 @@ if __name__ == "__main__":
         else:
             logging.info('Keyboard interrupt')
         frame.wake(force=True)
-
