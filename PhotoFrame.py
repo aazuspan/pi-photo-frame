@@ -87,11 +87,12 @@ class PhotoFrame:
 
         # Continue sleeping until motion is detected
         while not self.is_awake:
+            # Check for IR commands that would wake up the display
             self.handle_commands()
 
+            # Check for motion that would wake up the display
             if self.is_significant_motion_detected():
                 self.wake()
-                break
 
     # Wake the display up by turning HDMI back on
     def wake(self, force=False):
@@ -232,7 +233,7 @@ class PhotoFrame:
     def _create(self):
         logging.info('Creating pi3d components')
         self.DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
-                                      background=Constants.BACKGROUND_COLOR)
+                                           background=Constants.BACKGROUND_COLOR)
         self.CAMERA = pi3d.Camera(is_3d=False)
         self.SHADER = pi3d.Shader("blend_new")
         self.SLIDE = pi3d.Sprite(camera=self.CAMERA, w=self.DISPLAY.width, h=self.DISPLAY.height, z=5.0)
@@ -241,11 +242,11 @@ class PhotoFrame:
         self.SLIDE.unif[47] = Constants.EDGE_ALPHA
 
         self.FONT = pi3d.Font(Constants.FONT_FILE, codepoints=Constants.CODEPOINTS, grid_size=7, shadow_radius=4.0,
-                 shadow=(0,0,0,128))
+                              shadow=(0, 0, 0, 128))
         self.TEXT = pi3d.PointText(self.FONT, self.CAMERA, max_chars=200, point_size=50)
         self.TEXTBLOCK = pi3d.TextBlock(x=-self.DISPLAY.width * 0.5 + 50, y=-self.DISPLAY.height * 0.4,
-                                   z=0.1, rot=0.0, char_count=199, size=0.99, text_format="{}".format(1),
-                                   spacing="F", space=0.02, colour=(1.0, 1.0, 1.0, 1.0))
+                                        z=0.1, rot=0.0, char_count=199, size=0.99, text_format="{}".format(1),
+                                        spacing="F", space=0.02, colour=(1.0, 1.0, 1.0, 1.0))
         self.TEXT.add_text_block(self.TEXTBLOCK)
     
     # Get and return a list of files from the picture directory
@@ -301,31 +302,38 @@ class PhotoFrame:
         # If an IR remote signal is detected
         if command:
             logging.info('IR command received: {}'.format(command))
-            # Toggle pause
-            if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
-                if self._paused:
-                    self.text_message('PLAY')
-                else:
-                    self.text_message('PAUSE')
-                self.toggle_pause()
-            # Previous slide
-            elif command in ['KEY_LEFT', 'KEY_REWIND']:
-                self.text_message('PREVIOUS')
-                # Set the previous slide as next
-                self.prev_slide()
-                # Go to it immediately
-                self.next_slide()
-            # Next slide
-            elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-                self.text_message('NEXT')
-                self.next_slide()
-            elif command == 'KEY_STOP':
-                self.sleep()
-            # Exit slideshow
-            elif command == 'KEY_EXIT':
-                # If the exit key is pressed repeatedly
-                if self.is_exit_confirmed():
-                    self.stop()
+
+            # Wake from sleep but don't execute the command
+            if not self.is_awake:
+                self.wake()
+
+            # Execute the command
+            else:
+                # Toggle pause
+                if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
+                    if self._paused:
+                        self.text_message('PLAY')
+                    else:
+                        self.text_message('PAUSE')
+                    self.toggle_pause()
+                # Previous slide
+                elif command in ['KEY_LEFT', 'KEY_REWIND']:
+                    self.text_message('PREVIOUS')
+                    # Set the previous slide as next
+                    self.prev_slide()
+                    # Go to it immediately
+                    self.next_slide()
+                # Next slide
+                elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
+                    self.text_message('NEXT')
+                    self.next_slide()
+                elif command == 'KEY_STOP':
+                    self.sleep()
+                # Exit slideshow
+                elif command == 'KEY_EXIT':
+                    # If the exit key is pressed repeatedly
+                    if self.is_exit_confirmed():
+                        self.stop()
     
 
 # Load a file or PIL Image as a texture object
@@ -382,4 +390,5 @@ if __name__ == "__main__":
             logging.exception('Fatal error!')
         else:
             logging.info('Keyboard interrupt')
+
         frame.wake(force=True)
