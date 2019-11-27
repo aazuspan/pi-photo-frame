@@ -305,7 +305,7 @@ class PhotoFrame:
 
             # Wake from sleep but don't execute the command
             if not self.is_awake:
-                self.wake()
+                self.wake(force=True)
 
             # Execute the command
             else:
