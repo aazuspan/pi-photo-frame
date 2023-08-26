@@ -36,7 +36,8 @@ class PhotoFrame:
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
         
-        self._file_list, self._num_files = self._get_files()
+        self._file_list = self._get_files()
+        self._num_files = len(self._file_list)
         
         if not self._file_list:
             raise Exception('No valid pictures were found in {}!'.format(constants.PIC_DIR))
@@ -195,7 +196,6 @@ class PhotoFrame:
 
     # Check if exit key is hit enough times to stop the program
     def is_exit_confirmed(self):
-        # Time when the exit check starts
         start_time = time.time()
         # How long will exit keys be accepted for?
         check_seconds = 2
@@ -231,7 +231,7 @@ class PhotoFrame:
         self.SLIDE.set_shader(self.SHADER)
         self.SLIDE.unif[47] = constants.EDGE_ALPHA
 
-        self.FONT = pi3d.Font(constants.FONT_FILE, codepoints=constants.CODEPOINTS, grid_size=7, shadow_radius=4.0,
+        self.FONT = pi3d.Font(str(constants.FONT_FILE), codepoints=constants.CODEPOINTS, grid_size=7, shadow_radius=4.0,
                               shadow=(0, 0, 0, 128))
         self.TEXT = pi3d.PointText(self.FONT, self.CAMERA, max_chars=200, point_size=50)
         self.TEXTBLOCK = pi3d.TextBlock(x=-self.DISPLAY.width * 0.5 + 50, y=-self.DISPLAY.height * 0.4,
@@ -242,17 +242,10 @@ class PhotoFrame:
     # Get and return a list of files from the picture directory
     def _get_files(self):
         logging.info('Collecting files')
-        file_list = []
         extensions_list = ['.png', '.jpg', '.jpeg']
-
-        for root, _dirnames, filenames in os.walk(constants.PIC_DIR):
-            for filename in filenames:
-                # Get the lowercase file extension of each file
-                ext = os.path.splitext(filename)[1].lower()
-
-                if ext in extensions_list and not filename.startswith('.'):
-                    file_path_name = os.path.join(root, filename)
-                    file_list.append(file_path_name)
+        file_list = []
+        for ext in extensions_list:
+            file_list += list(constants.PIC_DIR.glob("*{}".format(ext)))
 
         if self.shuffle:
             # Randomize all pictures
@@ -261,7 +254,7 @@ class PhotoFrame:
             # Sort pictures by name
             file_list.sort()
 
-        return file_list, len(file_list)
+        return file_list
     
     # Add a text message to the screen
     def text_message(self, message):
@@ -324,7 +317,7 @@ class PhotoFrame:
                     # If the exit key is pressed repeatedly
                     if self.is_exit_confirmed():
                         self.stop()
-    
+
 
 # Load a file or PIL Image as a texture object
 def texture_load(filename):
@@ -367,7 +360,7 @@ def load_picture(picture_path):
 
 if __name__ == "__main__":
     logging.basicConfig(filename='frameLog.log',
-                        filemode='a',
+                        filemode='w',
                         format='%(asctime)s %(levelname)s: %(message)s',
                         level=logging.INFO)
 
@@ -376,9 +369,9 @@ if __name__ == "__main__":
         frame.play()
     # If the program is killed by keyboard, or a bug occurs, make sure the display is awake
     except (KeyboardInterrupt, Exception) as e:
-        if e == Exception:
-            logging.exception('Fatal error!')
+        if isinstance(e, KeyboardInterrupt):
+            logging.info('Keyboard interrupt.')
         else:
-            logging.info('Keyboard interrupt')
+            logging.exception('Error! Shutting down gracefully.')
 
         frame.wake(force=True)
