@@ -20,8 +20,8 @@ import logging
 import pi3d
 from gpiozero import MotionSensor
 from PIL import Image
-from classes.Constants import Constants
-from classes.IRW import IRW
+from . import constants
+from .irw import IRW
 
 
 class PhotoFrame:
@@ -34,12 +34,12 @@ class PhotoFrame:
         # Create a motion sensor on GPIO pin 15. Queue_len determines sensitivity (more = less sensitive)
         self.motionsensor = MotionSensor(15, queue_len=30)
         # Amount of alpha to fade every frame when fading in new photo
-        self._delta_alpha = 1.0 / (Constants.FPS * Constants.TIME_FADE)
+        self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
         
         self._file_list, self._num_files = self._get_files()
         
         if not self._file_list:
-            raise Exception('No valid pictures were found in {}!'.format(Constants.PIC_DIR))
+            raise Exception('No valid pictures were found in {}!'.format(constants.PIC_DIR))
         
         # Initialize the socket that receives IR remote signals
         self.IRW = IRW()
@@ -65,7 +65,7 @@ class PhotoFrame:
         self.SLIDE.unif[45:47] = self.SLIDE.unif[42:44]  # transfer front width and height factors to back
         self.SLIDE.unif[51:53] = self.SLIDE.unif[48:50]  # transfer front width and height offsets
         wh_rat = (self.DISPLAY.width * self.picture_slide.iy) / (self.DISPLAY.height * self.picture_slide.ix)
-        if (wh_rat > 1.0 and Constants.FIT) or (wh_rat <= 1.0 and not Constants.FIT):
+        if (wh_rat > 1.0 and constants.FIT) or (wh_rat <= 1.0 and not constants.FIT):
             sz1, sz2, os1, os2 = 42, 43, 48, 49
         else:
             sz1, sz2, os1, os2 = 43, 42, 49, 48
@@ -94,8 +94,7 @@ class PhotoFrame:
     # Wake the display up by turning HDMI back on
     def wake(self, force=False):
         current_time = datetime.datetime.now().time()
-        # Check if the time is after the specified sleep window (can be overridden by force)
-        if current_time >= Constants.SLEEP_UNTIL_TIME or force:
+        if current_time >= constants.SLEEP_UNTIL_TIME or force:
             self.is_awake = True
             logging.info('Waking from sleep mode')
             # Turn HDMI output on
@@ -120,9 +119,7 @@ class PhotoFrame:
 
     # Check last motion time and decide whether it is time to sleep
     def is_time_to_sleep(self):
-        if self.current_time - self.last_motion_time > Constants.SLEEP_AFTER_SECONDS:
-            return True
-        return False
+        return self.current_time - self.last_motion_time > constants.SLEEP_AFTER_SECONDS
 
     # Called when motion is detected. Return whether the motion lasts long enough to meet the threshold
     def is_significant_motion_detected(self):
@@ -130,7 +127,7 @@ class PhotoFrame:
         while self.motionsensor.motion_detected:
             motion_count += 1
             # Interrupt the check loop as soon as the threshold is met
-            if motion_count > Constants.MOTION_THRESHOLD:
+            if motion_count > constants.MOTION_THRESHOLD:
                 return True
         # Motion threshold wasn't met
         return False
@@ -140,7 +137,7 @@ class PhotoFrame:
         while self.DISPLAY.loop_running():
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
-                self.next_time = self.current_time + Constants.TIME_DELAY
+                self.next_time = self.current_time + constants.TIME_DELAY
                 # Proportion of front image to back
                 alpha = 0.0
 
@@ -150,19 +147,15 @@ class PhotoFrame:
 
                 while not self.picture_slide:
                     self.pic_num = self.next_pic_num
-                    # Create a PIL Image with corrected rotation
                     picture = load_picture(self._file_list[self.pic_num])
-                    # Create a texture from the Image
                     self.picture_slide = texture_load(picture)
 
                     self.next_pic_num += 1
 
                     # At end of list, wrap back to beginning of list
                     if self.next_pic_num >= self._num_files:
-                        # Restart list
                         self.next_pic_num = 0
 
-                        # Reshuffle if requested
                         if self.shuffle:
                             random.shuffle(self._file_list)
 
@@ -229,16 +222,16 @@ class PhotoFrame:
     # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
         logging.info('Creating pi3d components')
-        self.DISPLAY = pi3d.Display.create(frames_per_second=Constants.FPS,
-                                           background=Constants.BACKGROUND_COLOR)
+        self.DISPLAY = pi3d.Display.create(frames_per_second=constants.FPS,
+                                           background=constants.BACKGROUND_COLOR)
         self.CAMERA = pi3d.Camera(is_3d=False)
         self.SHADER = pi3d.Shader("blend_new")
         self.SLIDE = pi3d.Sprite(camera=self.CAMERA, w=self.DISPLAY.width, h=self.DISPLAY.height, z=5.0)
         
         self.SLIDE.set_shader(self.SHADER)
-        self.SLIDE.unif[47] = Constants.EDGE_ALPHA
+        self.SLIDE.unif[47] = constants.EDGE_ALPHA
 
-        self.FONT = pi3d.Font(Constants.FONT_FILE, codepoints=Constants.CODEPOINTS, grid_size=7, shadow_radius=4.0,
+        self.FONT = pi3d.Font(constants.FONT_FILE, codepoints=constants.CODEPOINTS, grid_size=7, shadow_radius=4.0,
                               shadow=(0, 0, 0, 128))
         self.TEXT = pi3d.PointText(self.FONT, self.CAMERA, max_chars=200, point_size=50)
         self.TEXTBLOCK = pi3d.TextBlock(x=-self.DISPLAY.width * 0.5 + 50, y=-self.DISPLAY.height * 0.4,
@@ -252,7 +245,7 @@ class PhotoFrame:
         file_list = []
         extensions_list = ['.png', '.jpg', '.jpeg']
 
-        for root, _dirnames, filenames in os.walk(Constants.PIC_DIR):
+        for root, _dirnames, filenames in os.walk(constants.PIC_DIR):
             for filename in filenames:
                 # Get the lowercase file extension of each file
                 ext = os.path.splitext(filename)[1].lower()
@@ -354,8 +347,8 @@ def _fix_rotation(image):
                          format(image))
 
     try:
-        orientation_value = exif_data[Constants.EXIF_ORIENTATION_TAG]
-        rotated_image = image.rotate(Constants.EXIF_ORIENTATION_DICT[orientation_value], expand=True)
+        orientation_value = exif_data[constants.EXIF_ORIENTATION_TAG]
+        rotated_image = image.rotate(constants.EXIF_ORIENTATION_DICT[orientation_value], expand=True)
         return rotated_image
     # If the image doesn't have exif data or the orientation value isn't in the dictionary keys
     except (KeyError, TypeError, IndexError):
