@@ -17,6 +17,7 @@ import time
 import datetime
 import random
 import logging
+from pathlib import Path
 import pi3d
 from gpiozero import MotionSensor
 from PIL import Image
@@ -25,8 +26,10 @@ from .irw import IRW
 
 
 class PhotoFrame:
-    def __init__(self, shuffle=True):
+    def __init__(self, photo_dir, delay, shuffle=True):
         logging.info('INITIALIZING NEW PHOTO FRAME')
+        self.photo_dir = Path(photo_dir)
+        self.delay = delay
         # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
         self._paused = False
@@ -38,9 +41,6 @@ class PhotoFrame:
         
         self._file_list = self._get_files()
         self._num_files = len(self._file_list)
-        
-        if not self._file_list:
-            raise Exception('No valid pictures were found in {}!'.format(constants.PIC_DIR))
         
         # Initialize the socket that receives IR remote signals
         self.IRW = IRW()
@@ -138,7 +138,7 @@ class PhotoFrame:
         while self.DISPLAY.loop_running():
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
-                self.next_time = self.current_time + constants.TIME_DELAY
+                self.next_time = self.current_time + self.delay
                 # Proportion of front image to back
                 alpha = 0.0
 
@@ -245,7 +245,7 @@ class PhotoFrame:
         extensions_list = ['.png', '.jpg', '.jpeg']
         file_list = []
         for ext in extensions_list:
-            file_list += list(constants.PIC_DIR.glob("*{}".format(ext)))
+            file_list += list(self.photo_dir.glob("*{}".format(ext)))
 
         if self.shuffle:
             # Randomize all pictures
@@ -253,7 +253,10 @@ class PhotoFrame:
         else:
             # Sort pictures by name
             file_list.sort()
-
+        
+        if file_list:
+            raise Exception('No valid pictures were found in {}!'.format(self.photo_dir))
+        
         return file_list
     
     # Add a text message to the screen
@@ -356,22 +359,3 @@ def load_picture(picture_path):
     picture = _fix_rotation(picture)
 
     return picture
-
-
-if __name__ == "__main__":
-    logging.basicConfig(filename='frameLog.log',
-                        filemode='w',
-                        format='%(asctime)s %(levelname)s: %(message)s',
-                        level=logging.INFO)
-
-    frame = PhotoFrame(shuffle=True)
-    try:
-        frame.play()
-    # If the program is killed by keyboard, or a bug occurs, make sure the display is awake
-    except (KeyboardInterrupt, Exception) as e:
-        if isinstance(e, KeyboardInterrupt):
-            logging.info('Keyboard interrupt.')
-        else:
-            logging.exception('Error! Shutting down gracefully.')
-
-        frame.wake(force=True)

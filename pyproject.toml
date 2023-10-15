@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "frame"
+dynamic = ["version"]
+description = "A Raspberry Pi digital photo frame"
+license = "MIT"
+dependencies = [
+    "pi3d",
+    "Pillow",
+    "gpiozero",
+    "click",
+]
+
+[tool.hatch.version]
+path = "src/frame/__init__.py"
+
+[project.scripts]
+frame = "frame.cli:main"
