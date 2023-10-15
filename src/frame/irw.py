@@ -11,7 +11,6 @@ Based on pyirw.py by Akkana Peck, https://github.com/akkana/scripts/blob/master/
 '''
 
 import socket
-import select
 
 
 class IRW:
