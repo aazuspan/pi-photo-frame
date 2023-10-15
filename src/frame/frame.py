@@ -254,7 +254,7 @@ class PhotoFrame:
             # Sort pictures by name
             file_list.sort()
         
-        if file_list:
+        if not file_list:
             raise Exception('No valid pictures were found in {}!'.format(self.photo_dir))
         
         return file_list
