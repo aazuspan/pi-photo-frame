@@ -131,7 +131,7 @@ class PhotoFrame:
         self.SLIDE.unif[47] = constants.EDGE_ALPHA
 
         self.FONT = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0,
-                              shadow=(0, 0, 0, 128))
+                              codepoints="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", shadow=(0, 0, 0, 128))
         self.TEXT = pi3d.PointText(self.FONT, self.CAMERA, max_chars=200, point_size=50)
         self.TEXTBLOCK = pi3d.TextBlock(x=-self.DISPLAY.width * 0.5 + 50, y=-self.DISPLAY.height * 0.4,
                                         z=0.1, rot=0.0, char_count=199, size=0.99, text_format="{}".format(1),
