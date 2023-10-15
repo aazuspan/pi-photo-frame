@@ -15,20 +15,17 @@ GPIO pins:
 import os
 import time
 import datetime
-import random
 import logging
-from pathlib import Path
 import pi3d
 from gpiozero import MotionSensor
-from PIL import Image
 from . import constants
 from .irw import IRW
+from .photo_queue import PhotoQueue
 
 
 class PhotoFrame:
     def __init__(self, photo_dir, delay, shuffle=True):
         logging.info('INITIALIZING NEW PHOTO FRAME')
-        self.photo_dir = Path(photo_dir)
         self.delay = delay
         # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
         self.shuffle = shuffle
@@ -38,9 +35,8 @@ class PhotoFrame:
         self.motionsensor = MotionSensor(15, queue_len=30)
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
-        
-        self._file_list = self._get_files()
-        self._num_files = len(self._file_list)
+
+        self.photo_queue = PhotoQueue(directory=photo_dir, shuffle=shuffle)
         
         # Initialize the socket that receives IR remote signals
         self.IRW = IRW()
@@ -49,10 +45,7 @@ class PhotoFrame:
         self.current_time = time.time()
         # Time when the next picture will be displayed
         self.next_time = 0.0
-        # List index of current picture
-        self.pic_num = 0
-        # List index of the next picture
-        self.next_pic_num = 0
+
         # Last time motion was detected. Compared with SLEEP_AFTER to initiate sleep mode
         self.last_motion_time = time.time()
 
@@ -147,18 +140,8 @@ class PhotoFrame:
                 self.picture_slide = None
 
                 while not self.picture_slide:
-                    self.pic_num = self.next_pic_num
-                    picture = load_picture(self._file_list[self.pic_num])
-                    self.picture_slide = texture_load(picture)
+                    self.picture_slide = self.photo_queue.next().load()
 
-                    self.next_pic_num += 1
-
-                    # At end of list, wrap back to beginning of list
-                    if self.next_pic_num >= self._num_files:
-                        self.next_pic_num = 0
-
-                        if self.shuffle:
-                            random.shuffle(self._file_list)
 
                 # First run through
                 if not self.background_slide:
@@ -239,26 +222,6 @@ class PhotoFrame:
                                         spacing="F", space=0.02, colour=(1.0, 1.0, 1.0, 1.0))
         self.TEXT.add_text_block(self.TEXTBLOCK)
     
-    # Get and return a list of files from the picture directory
-    def _get_files(self):
-        logging.info('Collecting files')
-        extensions_list = ['.png', '.jpg', '.jpeg']
-        file_list = []
-        for ext in extensions_list:
-            file_list += list(self.photo_dir.glob("*{}".format(ext)))
-
-        if self.shuffle:
-            # Randomize all pictures
-            random.shuffle(file_list)
-        else:
-            # Sort pictures by name
-            file_list.sort()
-        
-        if not file_list:
-            raise Exception('No valid pictures were found in {}!'.format(self.photo_dir))
-        
-        return file_list
-    
     # Add a text message to the screen
     def text_message(self, message):
         self.TEXTBLOCK.set_text(str(message))
@@ -273,11 +236,11 @@ class PhotoFrame:
     def next_slide(self):
         self.next_time = time.time() - 1.0
 
-    # Change slide order to go to previous slide as next slide
     def prev_slide(self):
-        self.next_pic_num -= 2
-        if self.next_pic_num < -1:
-            self.next_pic_num = -1
+        # TODO: Refactor the photo navigation system
+        # The current system advances forward whenever a new slide is loaded,
+        # so we have to go back two slides to get to the previous one. 
+        self.photo_queue.previous().previous()
             
     # Check for IR remote commands and handle them
     def handle_commands(self):
@@ -320,42 +283,3 @@ class PhotoFrame:
                     # If the exit key is pressed repeatedly
                     if self.is_exit_confirmed():
                         self.stop()
-
-
-# Load a file or PIL Image as a texture object
-def texture_load(filename):
-    logging.debug('Loading texture from {}'.format(filename))
-    try:
-        texture = pi3d.Texture(filename, blend=True, m_repeat=True)
-    except Exception:
-        print("Error occured while loading file: {}!".format(filename))
-        texture = None
-    return texture
-
-
-# Take a PIL Image, rotate it based on Exif orientation data, and return it
-def _fix_rotation(image):
-    try:
-        exif_data = image._getexif()
-    # If the image doesn't have a _getexif method, it isn't valid
-    except AttributeError:
-        raise ValueError('Exif data could not be recovered from {}. Please confirm that it is a valid PIL Image.'.
-                         format(image))
-
-    try:
-        orientation_value = exif_data[constants.EXIF_ORIENTATION_TAG]
-        rotated_image = image.rotate(constants.EXIF_ORIENTATION_DICT[orientation_value], expand=True)
-        return rotated_image
-    # If the image doesn't have exif data or the orientation value isn't in the dictionary keys
-    except (KeyError, TypeError, IndexError):
-        return image
-
-
-# Load a picture as a PIL image, correct rotation, and return it
-def load_picture(picture_path):
-    logging.debug('Loading picture {}'.format(picture_path))
-    picture = Image.open(picture_path)
-    # Rotate the picture based on EXIF data if necessary
-    picture = _fix_rotation(picture)
-
-    return picture
