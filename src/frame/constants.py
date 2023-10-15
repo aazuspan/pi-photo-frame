@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 
 
-FONT_FILE = Path('/home/pi/DigitalPhotoFrame/fonts/NotoSans-Regular.ttf')
+FONT_FILE = Path("./fonts/NotoSans-Regular.ttf")
 
 # Determines how smooth fades are
 FPS = 20
