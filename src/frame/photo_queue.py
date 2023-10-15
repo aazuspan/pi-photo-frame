@@ -52,5 +52,5 @@ class PhotoQueue:
 
     def load(self) -> pi3d.Texture:
         """Load the current photo in the queue as a Texture."""
-        filepath = self.photos[self.idx]
+        filepath = self.photos[self.idx].as_posix()
         return pi3d.Texture(filepath, blend=True, m_repeat=True)
