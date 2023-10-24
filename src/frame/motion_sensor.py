@@ -3,7 +3,7 @@ import time
 
 
 class MotionSensor:
-    def __init__(self, motion_gpio, irw=None, sleep_after=1_200, motion_threshold=50_000):
+    def __init__(self, motion_gpio, sleep_after=1_200, motion_threshold=50_000):
         try:
             from gpiozero import MotionSensor
         except ImportError:
@@ -11,7 +11,6 @@ class MotionSensor:
         
         self.is_awake = True
         self.sensor = MotionSensor(motion_gpio, queue_len=30)
-        self.irw = irw
         self.sleep_after = sleep_after
         self.motion_threshold = motion_threshold
         self.last_motion = time.time()

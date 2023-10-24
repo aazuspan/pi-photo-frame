@@ -29,7 +29,7 @@ class PhotoFrame:
         
         self.irw = IRW()
         self.photo_queue = PhotoQueue(directory=photo_dir, shuffle=shuffle)
-        self.motion_sensor = MotionSensor(motion_gpio, irw=self.irw) if motion_gpio else None
+        self.motion_sensor = MotionSensor(motion_gpio) if motion_gpio else None
         
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
