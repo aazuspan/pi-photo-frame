@@ -14,6 +14,7 @@ def main(dir, delay, shuffle, motion_gpio):
                         filemode='w',
                         format='%(asctime)s %(levelname)s: %(message)s',
                         level=logging.INFO)
+    logging.getLogger().addHandler(logging.StreamHandler())
     
     try:
         frame = PhotoFrame(photo_dir=dir, delay=delay, shuffle=shuffle, motion_gpio=motion_gpio)
