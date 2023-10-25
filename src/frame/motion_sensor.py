@@ -20,12 +20,12 @@ class MotionSensor:
         self.sleep_after = sleep_after
         self.motion_threshold = motion_threshold
 
-        self.is_asleep = threading.Event()
+        self.is_awake = threading.Event()
         threading.Thread(target=self.check_loop).start()
 
     def update(self):
         """Block execution if asleep."""
-        self.is_asleep.wait()
+        self.is_awake.wait()
 
     def motion_detected(self):
         """Check the motion sensor for motion above a threshold."""
@@ -49,19 +49,19 @@ class MotionSensor:
                 last_motion = time.time()
             time_to_sleep = time.time() - last_motion > self.sleep_after
 
-            if self.is_asleep.is_set() and motion_confirmed:
+            if not self.is_awake.is_set() and motion_confirmed:
                 self.wake()
-            elif not self.is_asleep.is_set() and time_to_sleep:
+            elif self.is_awake.is_set() and time_to_sleep:
                 self.sleep()
     
     def sleep(self):
         """Put the display to sleep and wait for motion."""
-        self.is_asleep.set()
+        self.is_awake.clear()
         hdmi_off()
 
     def wake(self):
         """Wake the display from sleep."""
-        self.is_asleep.clear()
+        self.is_awake.set()
         hdmi_on()
 
 
