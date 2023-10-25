@@ -2,8 +2,7 @@ import click
 import logging
 from .photo_frame import PhotoFrame
 
-
-@click.command
+@click.command()
 @click.option("--dir", required=True, help="Photo directory to scan")
 @click.option("--delay", default=40, help="Seconds between slides")
 @click.option("--shuffle", is_flag=True, default=True, show_default=True, help="Shuffle photos")
@@ -15,14 +14,13 @@ def main(dir, delay, shuffle, motion_gpio):
                         format='%(asctime)s %(levelname)s: %(message)s',
                         level=logging.INFO)
     logging.getLogger().addHandler(logging.StreamHandler())
+
+    frame = PhotoFrame(photo_dir=dir, delay=delay, shuffle=shuffle, motion_gpio=motion_gpio)
     
     try:
-        frame = PhotoFrame(photo_dir=dir, delay=delay, shuffle=shuffle, motion_gpio=motion_gpio)
-    except (KeyboardInterrupt, Exception) as e:
-        if isinstance(e, KeyboardInterrupt):
-            logging.info('Keyboard interrupt.')
-        else:
-            logging.exception('Error! Shutting down gracefully.')
+        frame.play()
+    except Exception as e:
+        logging.exception(e)
     finally:
         frame.stop()
 

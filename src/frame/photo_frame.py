@@ -45,7 +45,6 @@ class PhotoFrame:
         self.background_slide = None
     
         self._create()
-        self._play_loop()
 
     # Resize the current picture to fit the slide (I have no idea how this works)
     def _resize_slide(self):
@@ -64,7 +63,7 @@ class PhotoFrame:
 
 
     # The main playback loop where slides are selected and played
-    def _play_loop(self):
+    def play(self):
         while self.DISPLAY.loop_running():
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
