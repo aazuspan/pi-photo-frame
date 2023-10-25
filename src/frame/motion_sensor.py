@@ -21,6 +21,7 @@ class MotionSensor:
         self.motion_threshold = motion_threshold
 
         self.is_awake = threading.Event()
+        self.is_awake.set()
         threading.Thread(target=self.check_loop).start()
 
     def update(self):
