@@ -12,10 +12,10 @@ class IRW:
     Based on pyirw.py by Akkana Peck, https://github.com/akkana/scripts/blob/master/rpi/pyirw.py
     """
     def __init__(self, socket_path="/var/run/lirc/lircd", timeout=0.01, blocking=0):
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.setblocking(blocking)
-        self.sock.settimeout(timeout)
-        self.sock.connect(socket_path)
+        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self._sock.setblocking(blocking)
+        self._sock.settimeout(timeout)
+        self._sock.connect(socket_path)
 
     def get_key(self):
         """Return a command if one is received."""
