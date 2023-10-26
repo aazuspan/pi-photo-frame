@@ -20,9 +20,11 @@ class MotionSensor:
         self.sleep_after = sleep_after
         self.motion_threshold = motion_threshold
 
+        self.is_checking = True
         self.is_awake = threading.Event()
         self.is_awake.set()
-        threading.Thread(target=self.check_loop).start()
+        self.check_thread = threading.Thread(target=self.check_loop)
+        self.check_thread.start()
 
     def update(self):
         """Block execution if asleep."""
@@ -43,7 +45,7 @@ class MotionSensor:
         """Watch the motion sensor and set the sleep state."""
         last_motion = time.time()
 
-        while True:
+        while self.is_checking:
             motion_confirmed = self.motion_detected()
                     
             if motion_confirmed:
@@ -58,17 +60,15 @@ class MotionSensor:
     def sleep(self):
         """Put the display to sleep and wait for motion."""
         self.is_awake.clear()
-        hdmi_off()
+        os.system("vcgencmd display_power 0")
 
     def wake(self):
         """Wake the display from sleep."""
         self.is_awake.set()
-        hdmi_on()
+        os.system("vcgencmd display_power 1")
 
-
-def hdmi_off():
-    os.system("vcgencmd display_power 0")
-
-
-def hdmi_on():
-    os.system("vcgencmd display_power 1")
+    def stop(self):
+        """Stop the motion sensor thread."""
+        self.wake()
+        self.is_checking = False
+        self.check_thread.join()

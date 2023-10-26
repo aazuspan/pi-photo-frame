@@ -113,7 +113,7 @@ class PhotoFrame:
     # End the program
     def stop(self):
         if self.motion_sensor:
-            self.motion_sensor.wake()
+            self.motion_sensor.stop()
         
         self.DISPLAY.destroy()
 
