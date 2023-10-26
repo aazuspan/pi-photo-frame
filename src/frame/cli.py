@@ -7,7 +7,8 @@ from .photo_frame import PhotoFrame
 @click.option("--delay", default=40, help="Seconds between slides")
 @click.option("--shuffle", is_flag=True, default=True, show_default=True, help="Shuffle photos")
 @click.option("--motion-gpio", default=None, help="GPIO pin for optional motion sensor")
-def main(dir, delay, shuffle, motion_gpio):
+@click.option("--use-irw", is_flag=True, default=False, show_default=True, help="Use IR remote")
+def main(dir, delay, shuffle, motion_gpio, use_irw):
     """Run a photo frame slideshow."""
     logging.basicConfig(filename='frameLog.log',
                         filemode='w',
@@ -15,7 +16,7 @@ def main(dir, delay, shuffle, motion_gpio):
                         level=logging.INFO)
     logging.getLogger().addHandler(logging.StreamHandler())
 
-    frame = PhotoFrame(photo_dir=dir, delay=delay, shuffle=shuffle, motion_gpio=motion_gpio)
+    frame = PhotoFrame(photo_dir=dir, delay=delay, shuffle=shuffle, motion_gpio=motion_gpio, use_irw=use_irw)
     
     try:
         frame.play()

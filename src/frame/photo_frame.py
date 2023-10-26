@@ -22,12 +22,12 @@ from .motion_sensor import MotionSensor
 
 
 class PhotoFrame:
-    def __init__(self, photo_dir, delay, shuffle=True, motion_gpio=None):
+    def __init__(self, photo_dir, delay, shuffle=True, motion_gpio=None, use_irw=False):
         logging.info('INITIALIZING NEW PHOTO FRAME')
         self.delay = delay
         self._paused = False
         
-        self.irw = IRW()
+        self.irw = IRW() if use_irw else None
         self.photo_queue = PhotoQueue(directory=photo_dir, shuffle=shuffle)
         self.motion_sensor = MotionSensor(motion_gpio) if motion_gpio else None
         
@@ -97,7 +97,7 @@ class PhotoFrame:
                 # Set alpha to fully opaque once fade is finished
                 self.SLIDE.unif[44] = 1.0
                 # Check for IR remote commands and react
-                self.handle_commands()
+                self.check_irw()
 
             # Draw the current contents of the frame
             self.SLIDE.draw()
@@ -157,31 +157,33 @@ class PhotoFrame:
         # so we have to go back two slides to get to the previous one. 
         self.photo_queue.previous().previous()
             
-    # Check for IR remote commands and handle them
-    def handle_commands(self):
-        # Check for IR remote signals
+    def check_irw(self):
+        """Check for IR remote commands and handle them."""
+        if not self.irw:
+            return
+        
         command = self.irw.get_key()
-
+        if not command:
+            return
+        
         # TODO: Allow navigating next and previous even if paused
-        # If an IR remote signal is detected
-        if command:
-            logging.info('IR command received: {}'.format(command))
+        logging.info('IR command received: {}'.format(command))
 
-            # Toggle pause
-            if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
-                if self._paused:
-                    self.text_message('PLAY')
-                else:
-                    self.text_message('PAUSE')
-                self.toggle_pause()
-            # Previous slide
-            elif command in ['KEY_LEFT', 'KEY_REWIND']:
-                self.text_message('PREVIOUS')
-                # Set the previous slide as next
-                self.prev_slide()
-                # Go to it immediately
-                self.next_slide()
-            # Next slide
-            elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-                self.text_message('NEXT')
-                self.next_slide()
+        # Toggle pause
+        if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
+            if self._paused:
+                self.text_message('PLAY')
+            else:
+                self.text_message('PAUSE')
+            self.toggle_pause()
+        # Previous slide
+        elif command in ['KEY_LEFT', 'KEY_REWIND']:
+            self.text_message('PREVIOUS')
+            # Set the previous slide as next
+            self.prev_slide()
+            # Go to it immediately
+            self.next_slide()
+        # Next slide
+        elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
+            self.text_message('NEXT')
+            self.next_slide()
