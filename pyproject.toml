@@ -9,8 +9,6 @@ description = "A Raspberry Pi digital photo frame"
 license = "MIT"
 dependencies = [
     "pi3d",
-    "Pillow",
-    "gpiozero",
     "click",
 ]
 

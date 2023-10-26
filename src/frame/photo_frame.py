@@ -12,48 +12,40 @@ GPIO pins:
     Pin 18: IR receiver (defined in LIRC settings)
 '''
 
-import os
 import time
-import datetime
 import logging
 import pi3d
-from gpiozero import MotionSensor
 from . import constants
 from .irw import IRW
 from .photo_queue import PhotoQueue
+from .motion_sensor import MotionSensor
 
 
 class PhotoFrame:
-    def __init__(self, photo_dir, delay, shuffle=True):
+    def __init__(self, photo_dir, delay, shuffle=True, motion_gpio=None):
         logging.info('INITIALIZING NEW PHOTO FRAME')
         self.delay = delay
-        # If true, photos are reshuffled every time a slideshow is started or the end of the list is reached
-        self.shuffle = shuffle
         self._paused = False
-        self.is_awake = True
-        # Create a motion sensor on GPIO pin 15. Queue_len determines sensitivity (more = less sensitive)
-        self.motionsensor = MotionSensor(15, queue_len=30)
+        
+        self.irw = IRW()
+        self.photo_queue = PhotoQueue(directory=photo_dir, shuffle=shuffle)
+        self.motion_sensor = MotionSensor(motion_gpio) if motion_gpio else None
+        
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
 
-        self.photo_queue = PhotoQueue(directory=photo_dir, shuffle=shuffle)
-        
-        # Initialize the socket that receives IR remote signals
-        self.IRW = IRW()
-        
         # Current time, used to decide when to change slides
         self.current_time = time.time()
         # Time when the next picture will be displayed
         self.next_time = 0.0
-
-        # Last time motion was detected. Compared with SLEEP_AFTER to initiate sleep mode
-        self.last_motion_time = time.time()
 
         # Foreground picture
         self.picture_slide = None
         # Background picture that foreground fades over
         self.background_slide = None
     
+        self._create()
+
     # Resize the current picture to fit the slide (I have no idea how this works)
     def _resize_slide(self):
         self.SLIDE.unif[45:47] = self.SLIDE.unif[42:44]  # transfer front width and height factors to back
@@ -69,65 +61,9 @@ class PhotoFrame:
         self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
         self.SLIDE.unif[os2] = 0.0
 
-    # Turn HDMI off to put display monitor to sleep. Stay in this loop until motion is detected
-    def sleep(self):
-        self.is_awake = False
-        logging.info('Entering sleep mode')
-        # Turn HDMI output off
-        os.system("vcgencmd display_power 0")
-
-        # Continue sleeping until motion is detected
-        while not self.is_awake:
-            # Check for IR commands that would wake up the display
-            self.handle_commands()
-
-            # Check for motion that would wake up the display
-            if self.is_significant_motion_detected():
-                self.wake()
-
-    # Wake the display up by turning HDMI back on
-    def wake(self, force=False):
-        current_time = datetime.datetime.now().time()
-        if current_time >= constants.SLEEP_UNTIL_TIME or force:
-            self.is_awake = True
-            logging.info('Waking from sleep mode')
-            # Turn HDMI output on
-            os.system("vcgencmd display_power 1")
-            # Update motion time so it doesn't immediately go back to sleep
-            self.last_motion_time = time.time()
-        else:
-            logging.info('Tried to wake from sleep mode but current time is within the sleep_until time.')
-
-    # Create the display and start the play loop
-    def play(self):
-        logging.info('Initiating play loop')
-        # Activate HDMI on the Pi
-        os.system("vcgencmd display_power 1")
-        self._create()
-        self._play_loop()
-
-    # Check for motion and update last motion time if detected
-    def update_motion_time(self):
-        if self.is_significant_motion_detected():
-            self.last_motion_time = time.time()
-
-    # Check last motion time and decide whether it is time to sleep
-    def is_time_to_sleep(self):
-        return self.current_time - self.last_motion_time > constants.SLEEP_AFTER_SECONDS
-
-    # Called when motion is detected. Return whether the motion lasts long enough to meet the threshold
-    def is_significant_motion_detected(self):
-        motion_count = 0
-        while self.motionsensor.motion_detected:
-            motion_count += 1
-            # Interrupt the check loop as soon as the threshold is met
-            if motion_count > constants.MOTION_THRESHOLD:
-                return True
-        # Motion threshold wasn't met
-        return False
 
     # The main playback loop where slides are selected and played
-    def _play_loop(self):
+    def play(self):
         while self.DISPLAY.loop_running():
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
@@ -141,7 +77,6 @@ class PhotoFrame:
 
                 while not self.picture_slide:
                     self.picture_slide = self.photo_queue.next().load()
-
 
                 # First run through
                 if not self.background_slide:
@@ -163,43 +98,23 @@ class PhotoFrame:
                 self.SLIDE.unif[44] = 1.0
                 # Check for IR remote commands and react
                 self.handle_commands()
-                # Check for motion and update the last motion time
-                self.update_motion_time()
-                # Decide whether to sleep based on last motion time and current time
-                if self.is_time_to_sleep():
-                    self.sleep()
 
             # Draw the current contents of the frame
             self.SLIDE.draw()
+            
+            if self.motion_sensor:
+                self.motion_sensor.update()
             
             # Paused text should stay on screen while paused
             if self._paused:
                 # BUG: When play is pressed, pause text still shows over it
                 self.TEXT.draw()
 
-    # Check if exit key is hit enough times to stop the program
-    def is_exit_confirmed(self):
-        start_time = time.time()
-        # How long will exit keys be accepted for?
-        check_seconds = 2
-        # Number of times exit key has been hit
-        current_exit_count = 0
-        # Number of times exit key must be hit to close (not counting the exit key that triggered this check)
-        required_exit_count = 2
-
-        # Check time
-        while time.time() < start_time + check_seconds:
-            # Look for IR commands
-            command = self.IRW.get_key()
-            if command == 'KEY_EXIT':
-                current_exit_count += 1
-                if current_exit_count >= required_exit_count:
-                    return True
-        # Check time passed without exit key being hit enough
-        return False
-
     # End the program
     def stop(self):
+        if self.motion_sensor:
+            self.motion_sensor.stop()
+        
         self.DISPLAY.destroy()
 
     # Create all of the pi3d components that will be used to play the photoframe
@@ -215,7 +130,7 @@ class PhotoFrame:
         self.SLIDE.unif[47] = constants.EDGE_ALPHA
 
         self.FONT = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0,
-                              shadow=(0, 0, 0, 128))
+                              codepoints="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", shadow=(0, 0, 0, 128))
         self.TEXT = pi3d.PointText(self.FONT, self.CAMERA, max_chars=200, point_size=50)
         self.TEXTBLOCK = pi3d.TextBlock(x=-self.DISPLAY.width * 0.5 + 50, y=-self.DISPLAY.height * 0.4,
                                         z=0.1, rot=0.0, char_count=199, size=0.99, text_format="{}".format(1),
@@ -245,41 +160,28 @@ class PhotoFrame:
     # Check for IR remote commands and handle them
     def handle_commands(self):
         # Check for IR remote signals
-        command = self.IRW.get_key()
+        command = self.irw.get_key()
 
         # TODO: Allow navigating next and previous even if paused
         # If an IR remote signal is detected
         if command:
             logging.info('IR command received: {}'.format(command))
 
-            # Wake from sleep but don't execute the command
-            if not self.is_awake:
-                self.wake(force=True)
-
-            # Execute the command
-            else:
-                # Toggle pause
-                if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
-                    if self._paused:
-                        self.text_message('PLAY')
-                    else:
-                        self.text_message('PAUSE')
-                    self.toggle_pause()
-                # Previous slide
-                elif command in ['KEY_LEFT', 'KEY_REWIND']:
-                    self.text_message('PREVIOUS')
-                    # Set the previous slide as next
-                    self.prev_slide()
-                    # Go to it immediately
-                    self.next_slide()
-                # Next slide
-                elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-                    self.text_message('NEXT')
-                    self.next_slide()
-                elif command == 'KEY_STOP':
-                    self.sleep()
-                # Exit slideshow
-                elif command == 'KEY_EXIT':
-                    # If the exit key is pressed repeatedly
-                    if self.is_exit_confirmed():
-                        self.stop()
+            # Toggle pause
+            if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
+                if self._paused:
+                    self.text_message('PLAY')
+                else:
+                    self.text_message('PAUSE')
+                self.toggle_pause()
+            # Previous slide
+            elif command in ['KEY_LEFT', 'KEY_REWIND']:
+                self.text_message('PREVIOUS')
+                # Set the previous slide as next
+                self.prev_slide()
+                # Go to it immediately
+                self.next_slide()
+            # Next slide
+            elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
+                self.text_message('NEXT')
+                self.next_slide()
