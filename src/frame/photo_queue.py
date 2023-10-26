@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Tuple
 import random
 import pi3d
+from PIL import Image
 
 
 class PhotoQueue:
@@ -53,4 +54,20 @@ class PhotoQueue:
     def load(self) -> pi3d.Texture:
         """Load the current photo in the queue as a Texture."""
         filepath = self.photos[self.idx].as_posix()
-        return pi3d.Texture(filepath, blend=True, m_repeat=True)
+        image = Image.open(filepath)
+        image = fix_exif_rotation(image)
+        return pi3d.Texture(image, blend=True, m_repeat=True)
+    
+
+def fix_exif_rotation(image):
+    EXIF_ORIENTATION_TAG = 274
+    EXIF_ORIENTATION_DICT = {3: 180, 4: 180, 5: 270, 6: 270, 7: 90, 8: 90}
+
+    try:
+        exif_data = image._getexif()
+        orientation_value = exif_data[EXIF_ORIENTATION_TAG]
+        image = image.rotate(EXIF_ORIENTATION_DICT[orientation_value], expand=True)
+    except Exception:
+        pass
+
+    return image
