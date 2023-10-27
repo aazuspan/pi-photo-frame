@@ -17,7 +17,7 @@ def fix_exif_rotation(image):
     exif_data = image.getexif()
     rotate_angle = exif_data.get(EXIF_ORIENTATION_TAG, None)
 
-    if not rotate_angle:
-        return
-    
-    return image.rotate(EXIF_ORIENTATION_DICT[rotate_angle], expand=True)
+    if rotate_angle:
+        image = image.rotate(EXIF_ORIENTATION_DICT[rotate_angle], expand=True)
+
+    return image
