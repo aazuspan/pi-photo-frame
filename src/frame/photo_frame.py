@@ -143,19 +143,18 @@ class PhotoFrame:
         self.TEXTBLOCK.colouring.set_colour(alpha=0.5)
         self.TEXT.regen()
         self.TEXT.draw()
-        
-    def toggle_pause(self):
-        self._paused = not self._paused
 
-    # Advance time to immediately go to the next slide in line (forward or backward)
     def next_slide(self):
+        """Navigate to the next slide."""
         self.next_time = time.time() - 1.0
 
     def prev_slide(self):
+        """Navigate to the previous slide."""
         # TODO: Refactor the photo navigation system
         # The current system advances forward whenever a new slide is loaded,
         # so we have to go back two slides to get to the previous one. 
         self.photo_queue.previous().previous()
+        self.next_slide()
             
     def check_irw(self):
         """Check for IR remote commands and handle them."""
@@ -166,24 +165,17 @@ class PhotoFrame:
         if not command:
             return
         
-        # TODO: Allow navigating next and previous even if paused
         logging.info('IR command received: {}'.format(command))
 
-        # Toggle pause
-        if command in ['KEY_PLAY', 'KEY_PLAYPAUSE']:
-            if self._paused:
-                self.text_message('PLAY')
-            else:
-                self.text_message('PAUSE')
-            self.toggle_pause()
-        # Previous slide
+        if command == "KEY_PLAY":
+            self._paused = False
+            self.text_message('PLAY')
+        elif command == "KEY_PLAYPAUSE":
+            self._paused = not self._paused
+            self.text_message('PAUSE' if self._paused else 'PLAY')
         elif command in ['KEY_LEFT', 'KEY_REWIND']:
             self.text_message('PREVIOUS')
-            # Set the previous slide as next
             self.prev_slide()
-            # Go to it immediately
-            self.next_slide()
-        # Next slide
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
             self.text_message('NEXT')
             self.next_slide()
