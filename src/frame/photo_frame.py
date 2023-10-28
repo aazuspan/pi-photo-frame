@@ -34,37 +34,33 @@ class PhotoFrame:
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
 
-        # Current time, used to decide when to change slides
         self.current_time = time.time()
-        # Time when the next picture will be displayed
         self.next_time = 0.0
 
-        # Foreground picture
-        self.picture_slide = None
-        # Background picture that foreground fades over
-        self.background_slide = None
+        self.foreground = None
+        self.background = None
     
         self._create()
 
-    # Resize the current picture to fit the slide (I have no idea how this works)
     def _resize_slide(self):
-        self.SLIDE.unif[45:47] = self.SLIDE.unif[42:44]  # transfer front width and height factors to back
-        self.SLIDE.unif[51:53] = self.SLIDE.unif[48:50]  # transfer front width and height offsets
-        wh_rat = (self.DISPLAY.width * self.picture_slide.iy) / (self.DISPLAY.height * self.picture_slide.ix)
+        """Resize the current picture to fit the slide."""
+        self.slide.unif[45:47] = self.slide.unif[42:44]  # transfer front width and height factors to back
+        self.slide.unif[51:53] = self.slide.unif[48:50]  # transfer front width and height offsets
+        wh_rat = (self.display.width * self.foreground.iy) / (self.display.height * self.foreground.ix)
         if (wh_rat > 1.0 and constants.FIT) or (wh_rat <= 1.0 and not constants.FIT):
             sz1, sz2, os1, os2 = 42, 43, 48, 49
         else:
             sz1, sz2, os1, os2 = 43, 42, 49, 48
             wh_rat = 1.0 / wh_rat
-        self.SLIDE.unif[sz1] = wh_rat
-        self.SLIDE.unif[sz2] = 1.0
-        self.SLIDE.unif[os1] = (wh_rat - 1.0) * 0.5
-        self.SLIDE.unif[os2] = 0.0
+        self.slide.unif[sz1] = wh_rat
+        self.slide.unif[sz2] = 1.0
+        self.slide.unif[os1] = (wh_rat - 1.0) * 0.5
+        self.slide.unif[os2] = 0.0
 
 
-    # The main playback loop where slides are selected and played
     def play(self):
-        while self.DISPLAY.loop_running():
+        """Playback loop."""
+        while self.display.loop_running():
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
                 self.next_time = self.current_time + self.delay
@@ -72,17 +68,17 @@ class PhotoFrame:
                 alpha = 0.0
 
                 # Use current picture as background that next picture will fade over
-                self.background_slide = self.picture_slide
-                self.picture_slide = None
+                self.background = self.foreground
+                self.foreground = None
 
-                while not self.picture_slide:
-                    self.picture_slide = self.photo_queue.next().load()
+                while not self.foreground:
+                    self.foreground = self.photo_queue.next().load()
 
                 # First run through
-                if not self.background_slide:
-                    self.background_slide = self.picture_slide
+                if not self.background:
+                    self.background = self.foreground
 
-                self.SLIDE.set_textures([self.picture_slide, self.background_slide])
+                self.slide.set_textures([self.foreground, self.background])
                 
                 # Resize the picture to fit the slide
                 self._resize_slide()
@@ -91,16 +87,16 @@ class PhotoFrame:
             # Fade alpha in (avoid overshooting 1.0) and ignore remote and motion
             if alpha + self._delta_alpha < 1.0:
                 alpha += self._delta_alpha
-                self.SLIDE.unif[44] = alpha
+                self.slide.unif[44] = alpha
             # Alpha transition is over
             else:
                 # Set alpha to fully opaque once fade is finished
-                self.SLIDE.unif[44] = 1.0
+                self.slide.unif[44] = 1.0
                 # Check for IR remote commands and react
                 self.check_irw()
 
             # Draw the current contents of the frame
-            self.SLIDE.draw()
+            self.slide.draw()
             
             if self.motion_sensor:
                 self.motion_sensor.update()
@@ -108,41 +104,37 @@ class PhotoFrame:
             # Paused text should stay on screen while paused
             if self._paused:
                 # BUG: When play is pressed, pause text still shows over it
-                self.TEXT.draw()
+                self.text.draw()
 
-    # End the program
     def stop(self):
+        """End the program."""
         if self.motion_sensor:
             self.motion_sensor.stop()
         
-        self.DISPLAY.destroy()
+        self.display.destroy()
 
-    # Create all of the pi3d components that will be used to play the photoframe
     def _create(self):
-        logging.info('Creating pi3d components')
-        self.DISPLAY = pi3d.Display.create(frames_per_second=constants.FPS,
-                                           background=constants.BACKGROUND_COLOR)
-        self.CAMERA = pi3d.Camera(is_3d=False)
-        self.SHADER = pi3d.Shader("blend_new")
-        self.SLIDE = pi3d.Sprite(camera=self.CAMERA, w=self.DISPLAY.width, h=self.DISPLAY.height, z=5.0)
-        
-        self.SLIDE.set_shader(self.SHADER)
-        self.SLIDE.unif[47] = constants.EDGE_ALPHA
+        """Create pi3d components."""
+        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        camera = pi3d.Camera(is_3d=False)
+        shader = pi3d.Shader("blend_new")
+        font = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0, codepoints=CODEPOINTS, shadow=(0, 0, 0, 128))
 
-        self.FONT = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0,
-                              codepoints="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", shadow=(0, 0, 0, 128))
-        self.TEXT = pi3d.PointText(self.FONT, self.CAMERA, max_chars=200, point_size=50)
-        self.TEXTBLOCK = pi3d.TextBlock(x=-self.DISPLAY.width * 0.5 + 50, y=-self.DISPLAY.height * 0.4,
-                                        z=0.1, rot=0.0, char_count=199, size=0.99, text_format="{}".format(1),
-                                        spacing="F", space=0.02, colour=(1.0, 1.0, 1.0, 1.0))
-        self.TEXT.add_text_block(self.TEXTBLOCK)
+        self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
+        self.slide = pi3d.Sprite(camera=camera, w=self.display.width, h=self.display.height, z=5.0)
+        self.text = pi3d.PointText(font, camera, max_chars=200, point_size=50)
+        self.textblock = pi3d.TextBlock(x=-self.display.width * 0.5 + 50, y=-self.display.height * 0.4, z=0.1, char_count=199)
+        
+        self.slide.set_shader(shader)
+        self.slide.unif[47] = constants.EDGE_ALPHA
+        self.text.add_text_block(self.textblock)
     
     # Add a text message to the screen
     def text_message(self, message):
-        self.TEXTBLOCK.set_text(str(message))
-        self.TEXTBLOCK.colouring.set_colour(alpha=0.5)
-        self.TEXT.regen()
-        self.TEXT.draw()
+        self.textblock.set_text(str(message))
+        self.textblock.colouring.set_colour(alpha=0.5)
+        self.text.regen()
+        self.text.draw()
 
     def next_slide(self):
         """Navigate to the next slide."""
