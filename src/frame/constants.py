@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Font path relative to the CLI module
-FONT_FILE = Path(__file__).parent.parent.parent / "fonts/NotoSans-Regular.ttf"
+FONT_FILE = Path(__file__).parent.parent.parent / "fonts/opensans.ttf"
 
 # Determines how smooth fades are
 FPS = 20
