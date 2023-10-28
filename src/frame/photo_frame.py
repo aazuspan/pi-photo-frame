@@ -63,6 +63,19 @@ class PhotoFrame:
 
     def update_slide(self):
         """Set the foreground and background for a new slide."""
+
+        """
+        idx = 2
+        foreground = red (2)
+        background = blue (1)
+
+        prev!
+
+        idx = 1
+        foreground = blue (1)
+        background = red (2)
+        """
+
         self.background = self.foreground
         self.foreground = None
 
@@ -87,10 +100,10 @@ class PhotoFrame:
     def play(self):
         """Playback loop."""
         while self.display.loop_running():
-            self.update_alpha()
-            self.check_irw()
             self.slide.draw()
             self.text.draw()
+            self.update_alpha()
+            self.check_irw()
 
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
@@ -109,7 +122,7 @@ class PhotoFrame:
 
     def _create(self):
         """Create pi3d components."""
-        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghjijklmnopqrstuvwxyz1234567890._-"
         self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
         camera = pi3d.Camera(is_3d=False)
         shader = pi3d.Shader("blend_new")
@@ -171,6 +184,6 @@ class PhotoFrame:
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
             self.display_text('NEXT')
             self.next_slide()
-        elif command == "KEY_INFO":
+        elif command == "KEY_UP":
             img_name = self.photo_queue.photos[self.photo_queue.idx].as_posix()
-            self.display_text(img_name)
+            self.display_text(img_name, duration=10)
