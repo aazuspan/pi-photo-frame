@@ -132,6 +132,7 @@ class PhotoFrame:
         self.textblock.set_text(str(message))
         self.textblock.colouring.set_colour(alpha=0.5)
         self.text.regen()
+        self.text.draw()
 
         self.text_thread.cancel()
         if duration is not None:
