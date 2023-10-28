@@ -23,6 +23,17 @@ from .photo_queue import PhotoQueue
 from .motion_sensor import MotionSensor
 
 
+
+"""
+TODO:
+
+- File names don't display correctly (missing chars)
+- "s" on screen after loading (codepoints issue?)
+- "Previous" doesn't show when loading takes more than 2s
+
+"""
+
+
 class PhotoFrame:
     def __init__(self, photo_dir, delay, shuffle=True, motion_gpio=None, use_irw=False):
         logging.info('INITIALIZING NEW PHOTO FRAME')
@@ -109,7 +120,7 @@ class PhotoFrame:
 
     def _create(self):
         """Create pi3d components."""
-        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghjijklmnopqrstuvwxyz1234567890._-"
+        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghjijklmnopqrstuvwxyz1234567890._- "
         self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
         camera = pi3d.Camera(is_3d=False)
         shader = pi3d.Shader("blend_new")
@@ -122,6 +133,7 @@ class PhotoFrame:
         self.slide.set_shader(shader)
         self.slide.unif[47] = constants.EDGE_ALPHA
         self.text.add_text_block(self.textblock)
+        self.textblock.set_text("")
     
     def clear_text(self):
         """Clear text from the screen."""
