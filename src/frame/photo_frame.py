@@ -17,7 +17,7 @@ import logging
 import pi3d
 import threading
 from typing import Union
-from . import constants
+from . import config
 from .irw import IRW
 from .photo_queue import PhotoQueue
 from .motion_sensor import MotionSensor
@@ -34,7 +34,7 @@ class PhotoFrame:
         self.motion_sensor = MotionSensor(motion_gpio) if motion_gpio else None
         
         # Amount of alpha to fade every frame when fading in new photo
-        self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
+        self._delta_alpha = 1.0 / (config.FPS * config.TIME_FADE)
         self.foreground_alpha = 0.0
 
         self.current_time = time.time()
@@ -51,7 +51,7 @@ class PhotoFrame:
         self.slide.unif[45:47] = self.slide.unif[42:44]  # transfer front width and height factors to back
         self.slide.unif[51:53] = self.slide.unif[48:50]  # transfer front width and height offsets
         wh_rat = (self.display.width * self.foreground.iy) / (self.display.height * self.foreground.ix)
-        if (wh_rat > 1.0 and constants.FIT) or (wh_rat <= 1.0 and not constants.FIT):
+        if (wh_rat > 1.0 and config.FIT) or (wh_rat <= 1.0 and not config.FIT):
             sz1, sz2, os1, os2 = 42, 43, 48, 49
         else:
             sz1, sz2, os1, os2 = 43, 42, 49, 48
@@ -109,17 +109,17 @@ class PhotoFrame:
 
     def _create(self):
         """Create pi3d components."""
-        self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
+        self.display = pi3d.Display.create(frames_per_second=config.FPS, background=config.BACKGROUND_COLOR)
         camera = pi3d.Camera(is_3d=False)
         shader = pi3d.Shader("blend_new")
-        font = pi3d.Font(str(constants.FONT_FILE), codepoints=constants.CODEPOINTS, shadow_radius=4.0, shadow=(0, 0, 0, 128))
+        font = pi3d.Font(str(config.FONT_FILE), codepoints=config.CODEPOINTS, shadow_radius=4.0, shadow=(0, 0, 0, 128))
 
         self.slide = pi3d.Sprite(camera=camera, w=self.display.width, h=self.display.height, z=5.0)
         self.text = pi3d.PointText(font, camera, max_chars=200, point_size=50)
         self.textblock = pi3d.TextBlock(x=-self.display.width * 0.5 + 50, y=-self.display.height * 0.4, z=0.1, rot=0.0, char_count=199, spacing="F", space=0.02)
         
         self.slide.set_shader(shader)
-        self.slide.unif[47] = constants.EDGE_ALPHA
+        self.slide.unif[47] = config.EDGE_ALPHA
         self.text.add_text_block(self.textblock)
         self.textblock.set_text("")
     
