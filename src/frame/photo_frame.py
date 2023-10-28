@@ -23,17 +23,6 @@ from .photo_queue import PhotoQueue
 from .motion_sensor import MotionSensor
 
 
-
-"""
-TODO:
-
-- File names don't display correctly (missing chars)
-- "s" on screen after loading (codepoints issue?)
-- "Previous" doesn't show when loading takes more than 2s
-
-"""
-
-
 class PhotoFrame:
     def __init__(self, photo_dir, delay, shuffle=True, motion_gpio=None, use_irw=False):
         logging.info('INITIALIZING NEW PHOTO FRAME')
@@ -120,11 +109,10 @@ class PhotoFrame:
 
     def _create(self):
         """Create pi3d components."""
-        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghjijklmnopqrstuvwxyz1234567890._- "
         self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
         camera = pi3d.Camera(is_3d=False)
         shader = pi3d.Shader("blend_new")
-        font = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0, codepoints=CODEPOINTS, shadow=(0, 0, 0, 128))
+        font = pi3d.Font(str(constants.FONT_FILE), codepoints=constants.CODEPOINTS, shadow_radius=4.0, shadow=(0, 0, 0, 128))
 
         self.slide = pi3d.Sprite(camera=camera, w=self.display.width, h=self.display.height, z=5.0)
         self.text = pi3d.PointText(font, camera, max_chars=200, point_size=50)
@@ -142,7 +130,6 @@ class PhotoFrame:
     def display_text(self, message, duration: Union[float, None]=2.0):
         """Display text on the screen."""
         self.textblock.set_text(str(message))
-        self.textblock.colouring.set_colour(alpha=0.5)
         self.text.regen()
         self.text.draw()
 
