@@ -35,6 +35,7 @@ class PhotoFrame:
         
         # Amount of alpha to fade every frame when fading in new photo
         self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
+        self.foreground_alpha = 0.0
 
         self.current_time = time.time()
         self.next_time = 0.0
@@ -59,6 +60,27 @@ class PhotoFrame:
         self.slide.unif[os1] = (wh_rat - 1.0) * 0.5
         self.slide.unif[os2] = 0.0
 
+    def update_slide(self):
+        """Set the foreground and background for a new slide."""
+        self.background = self.foreground
+        self.foreground = None
+
+        while not self.foreground:
+            self.foreground = self.photo_queue.load()
+
+        # First run through
+        if not self.background:
+            self.background = self.foreground
+
+        self.slide.set_textures([self.foreground, self.background])            
+        self._resize_slide()
+
+    def update_alpha(self):
+        if self.foreground_alpha >= 1.0:
+            return
+
+        self.foreground_alpha = min(self.foreground_alpha + self._delta_alpha, 1.0)
+        self.slide.unif[44] = self.foreground_alpha
 
     def play(self):
         """Playback loop."""
@@ -66,40 +88,14 @@ class PhotoFrame:
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
                 self.next_time = self.current_time + self.delay
-                # Proportion of front image to back
-                alpha = 0.0
-
-                # Use current picture as background that next picture will fade over
-                self.background = self.foreground
-                self.foreground = None
-
-                while not self.foreground:
-                    self.foreground = self.photo_queue.next().load()
-
-                # First run through
-                if not self.background:
-                    self.background = self.foreground
-
-                self.slide.set_textures([self.foreground, self.background])
-                
-                # Resize the picture to fit the slide
-                self._resize_slide()
-
-            # BUG: "PREVIOUS" will show through when you go back and forth between slides
-            # Fade alpha in (avoid overshooting 1.0) and ignore remote and motion
-            if alpha + self._delta_alpha < 1.0:
-                alpha += self._delta_alpha
-                self.slide.unif[44] = alpha
-            # Alpha transition is over
-            else:
-                # Set alpha to fully opaque once fade is finished
-                self.slide.unif[44] = 1.0
-                # Check for IR remote commands and react
-                self.check_irw()
-            
+                self.next_slide()
+                self.foreground_alpha = 0.0
+                        
             if self.motion_sensor:
                 self.motion_sensor.update()
             
+            self.update_alpha()
+            self.check_irw()
             self.slide.draw()
             self.text.draw()
 
@@ -141,15 +137,13 @@ class PhotoFrame:
 
     def next_slide(self):
         """Navigate to the next slide."""
-        self.next_time = time.time() - 1.0
+        self.photo_queue.next()
+        self.update_slide()
 
     def prev_slide(self):
         """Navigate to the previous slide."""
-        # TODO: Refactor the photo navigation system
-        # The current system advances forward whenever a new slide is loaded,
-        # so we have to go back two slides to get to the previous one. 
-        self.photo_queue.previous().previous()
-        self.next_slide()
+        self.photo_queue.previous()
+        self.update_slide()
             
     def check_irw(self):
         """Check for IR remote commands and handle them."""
