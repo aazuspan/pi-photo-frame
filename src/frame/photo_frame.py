@@ -74,6 +74,7 @@ class PhotoFrame:
 
         self.slide.set_textures([self.foreground, self.background])            
         self._resize_slide()
+        self.current_time + self.delay
 
     def update_alpha(self):
         if self.foreground_alpha >= 1.0:
@@ -92,7 +93,6 @@ class PhotoFrame:
 
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
-                self.next_time = self.current_time + self.delay
                 self.next_slide()
                 self.foreground_alpha = 0.0
                         
