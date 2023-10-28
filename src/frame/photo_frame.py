@@ -63,19 +63,6 @@ class PhotoFrame:
 
     def update_slide(self):
         """Set the foreground and background for a new slide."""
-
-        """
-        idx = 2
-        foreground = red (2)
-        background = blue (1)
-
-        prev!
-
-        idx = 1
-        foreground = blue (1)
-        background = red (2)
-        """
-
         self.background = self.foreground
         self.foreground = None
 
@@ -100,15 +87,15 @@ class PhotoFrame:
     def play(self):
         """Playback loop."""
         while self.display.loop_running():
+            self.update_alpha()
             self.slide.draw()
             self.text.draw()
-            self.update_alpha()
             self.check_irw()
 
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
-                self.next_slide()
                 self.foreground_alpha = 0.0
+                self.next_slide()
                         
             if self.motion_sensor:
                 self.motion_sensor.update()
@@ -185,5 +172,5 @@ class PhotoFrame:
             self.display_text('NEXT')
             self.next_slide()
         elif command == "KEY_UP":
-            img_name = self.photo_queue.photos[self.photo_queue.idx].as_posix()
+            img_name = self.photo_queue.photos[self.photo_queue.idx].name
             self.display_text(img_name, duration=10)
