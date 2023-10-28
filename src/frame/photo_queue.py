@@ -55,7 +55,8 @@ class PhotoQueue:
 
     def load(self) -> Texture:
         """Load the current photo in the queue as a Texture."""
-        self.preload_thread.join()
+        if self.preload_thread.is_alive():
+            self.preload_thread.join()
         self.preload_thread.start()
         filepath = self.photos[self.idx].as_posix()
         return load_photo_texture(filepath)
