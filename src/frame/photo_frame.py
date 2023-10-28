@@ -161,15 +161,15 @@ class PhotoFrame:
 
         if command == "KEY_PLAY":
             self._paused = False
-            self.display_text('PLAY')
+            self.display_text('▶')
         elif command == "KEY_PLAYPAUSE":
             self._paused = not self._paused
-            self.display_text('PAUSE' if self._paused else 'PLAY')
+            self.display_text('⏸' if self._paused else '▶')
         elif command in ['KEY_LEFT', 'KEY_REWIND']:
-            self.display_text('PREVIOUS')
+            self.display_text('◀◀')
             self.prev_slide()
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-            self.display_text('NEXT')
+            self.display_text('▶▶')
             self.next_slide()
         elif command == "KEY_UP":
             img_name = self.photo_queue.photos[self.photo_queue.idx].name
