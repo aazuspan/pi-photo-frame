@@ -135,12 +135,9 @@ class PhotoFrame:
         self.textblock.set_text(str(message))
         self.textblock.colouring.set_colour(alpha=0.5)
         self.text.regen()
-        self.text.draw()
 
         if duration is not None:
             threading.Timer(duration, self.clear_text).start()
-            self.slide.draw()
-            self.text.draw()
 
     def next_slide(self):
         """Navigate to the next slide."""
@@ -167,14 +164,16 @@ class PhotoFrame:
 
         if command == "KEY_PLAY":
             self._paused = False
-            self.display_text('Play')
+            self.display_text('PLAY')
         elif command == "KEY_PLAYPAUSE":
             self._paused = not self._paused
-            duration = None if self._paused else 2.0
-            self.display_text('Pause' if self._paused else 'Play', duration=duration)
+            self.display_text('PAUSE' if self._paused else 'PLAY')
         elif command in ['KEY_LEFT', 'KEY_REWIND']:
-            self.display_text('Previous')
+            self.display_text('PREVIOUS')
             self.prev_slide()
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-            self.display_text('Next')
+            self.display_text('NEXT')
             self.next_slide()
+        elif command == "KEY_INFO":
+            img_name = self.photo_queue.photos[self.photo_queue.idx].as_posix()
+            self.display_text(img_name)
