@@ -116,11 +116,11 @@ class PhotoFrame:
     def _create(self):
         """Create pi3d components."""
         CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
         camera = pi3d.Camera(is_3d=False)
         shader = pi3d.Shader("blend_new")
         font = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0, codepoints=CODEPOINTS, shadow=(0, 0, 0, 128))
 
-        self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
         self.slide = pi3d.Sprite(camera=camera, w=self.display.width, h=self.display.height, z=5.0)
         self.text = pi3d.PointText(font, camera, max_chars=200, point_size=50)
         self.textblock = pi3d.TextBlock(x=-self.display.width * 0.5 + 50, y=-self.display.height * 0.4, z=0.1, char_count=199)
