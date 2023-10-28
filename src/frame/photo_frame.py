@@ -85,6 +85,11 @@ class PhotoFrame:
     def play(self):
         """Playback loop."""
         while self.display.loop_running():
+            self.update_alpha()
+            self.check_irw()
+            self.slide.draw()
+            self.text.draw()
+
             self.current_time = time.time()
             if self.current_time > self.next_time and not self._paused:
                 self.next_time = self.current_time + self.delay
@@ -93,11 +98,6 @@ class PhotoFrame:
                         
             if self.motion_sensor:
                 self.motion_sensor.update()
-            
-            self.update_alpha()
-            self.check_irw()
-            self.slide.draw()
-            self.text.draw()
 
     def stop(self):
         """End the program."""
