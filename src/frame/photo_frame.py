@@ -15,6 +15,8 @@ GPIO pins:
 import time
 import logging
 import pi3d
+import threading
+from typing import Union
 from . import constants
 from .irw import IRW
 from .photo_queue import PhotoQueue
@@ -94,17 +96,12 @@ class PhotoFrame:
                 self.slide.unif[44] = 1.0
                 # Check for IR remote commands and react
                 self.check_irw()
-
-            # Draw the current contents of the frame
-            self.slide.draw()
             
             if self.motion_sensor:
                 self.motion_sensor.update()
             
-            # Paused text should stay on screen while paused
-            if self._paused:
-                # BUG: When play is pressed, pause text still shows over it
-                self.text.draw()
+            self.slide.draw()
+            self.text.draw()
 
     def stop(self):
         """End the program."""
@@ -129,12 +126,21 @@ class PhotoFrame:
         self.slide.unif[47] = constants.EDGE_ALPHA
         self.text.add_text_block(self.textblock)
     
-    # Add a text message to the screen
-    def text_message(self, message):
+    def clear_text(self):
+        """Clear text from the screen."""
+        self.textblock.colouring.set_colour(alpha=0.0)
+
+    def display_text(self, message, duration: Union[float, None]=2.0):
+        """Display text on the screen."""
         self.textblock.set_text(str(message))
         self.textblock.colouring.set_colour(alpha=0.5)
         self.text.regen()
         self.text.draw()
+
+        if duration is not None:
+            threading.Timer(duration, self.clear_text).start()
+            self.slide.draw()
+            self.text.draw()
 
     def next_slide(self):
         """Navigate to the next slide."""
@@ -161,13 +167,14 @@ class PhotoFrame:
 
         if command == "KEY_PLAY":
             self._paused = False
-            self.text_message('PLAY')
+            self.display_text('Play')
         elif command == "KEY_PLAYPAUSE":
             self._paused = not self._paused
-            self.text_message('PAUSE' if self._paused else 'PLAY')
+            duration = None if self._paused else 2.0
+            self.display_text('Pause' if self._paused else 'Play', duration=duration)
         elif command in ['KEY_LEFT', 'KEY_REWIND']:
-            self.text_message('PREVIOUS')
+            self.display_text('Previous')
             self.prev_slide()
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-            self.text_message('NEXT')
+            self.display_text('Next')
             self.next_slide()
