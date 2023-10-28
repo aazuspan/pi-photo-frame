@@ -123,7 +123,7 @@ class PhotoFrame:
 
         self.slide = pi3d.Sprite(camera=camera, w=self.display.width, h=self.display.height, z=5.0)
         self.text = pi3d.PointText(font, camera, max_chars=200, point_size=50)
-        self.textblock = pi3d.TextBlock(x=-self.display.width * 0.5 + 50, y=-self.display.height * 0.4, z=0.1, rot=0.0, char_count=199, space=0.02)
+        self.textblock = pi3d.TextBlock(x=-self.display.width * 0.5 + 50, y=-self.display.height * 0.4, z=0.1, rot=0.0, char_count=199, spacing="F", space=0.02)
         
         self.slide.set_shader(shader)
         self.slide.unif[47] = constants.EDGE_ALPHA
