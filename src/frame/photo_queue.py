@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Tuple
 import random
 from pi3d import Texture
+import threading
 
 from .photo_utils import load_photo_texture
 
@@ -15,6 +16,7 @@ class PhotoQueue:
         self.exts = exts
         self.photos = self._get_photos()
         self.idx = 0
+        self.preload_thread = threading.Thread(target=self.preload_next)
 
     def _get_photos(self):
         """Generate the photo list."""
@@ -53,5 +55,16 @@ class PhotoQueue:
 
     def load(self) -> Texture:
         """Load the current photo in the queue as a Texture."""
+        self.preload_thread.join()
+        self.preload_thread.start()
         filepath = self.photos[self.idx].as_posix()
         return load_photo_texture(filepath)
+
+    def preload_next(self):
+        """Load the next photo into the cache."""
+        next_idx = self.idx + 1
+        next_path = self.photos[next_idx].as_posix() if next_idx < len(self.photos) else None
+        if not next_path:
+            return
+        
+        load_photo_texture(next_path)
