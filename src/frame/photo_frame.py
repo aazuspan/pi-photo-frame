@@ -39,6 +39,7 @@ class PhotoFrame:
 
         self.current_time = time.time()
         self.next_time = 0.0
+        self.text_thread = threading.Timer(0.0, self.clear_text)
 
         self.foreground = None
         self.background = None
@@ -132,8 +133,10 @@ class PhotoFrame:
         self.textblock.colouring.set_colour(alpha=0.5)
         self.text.regen()
 
+        self.text_thread.cancel()
         if duration is not None:
-            threading.Timer(duration, self.clear_text).start()
+            self.text_thread = threading.Timer(duration, self.clear_text)
+            self.text_thread.start()
 
     def next_slide(self):
         """Navigate to the next slide."""
