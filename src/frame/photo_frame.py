@@ -127,8 +127,9 @@ class PhotoFrame:
         """Clear text from the screen."""
         self.textblock.colouring.set_colour(alpha=0.0)
 
-    def display_text(self, message, duration: Union[float, None]=2.0):
+    def display_text(self, message, duration: Union[float, None]=2.0, alpha: float=1.0):
         """Display text on the screen."""
+        self.textblock.colouring.set_colour(alpha=alpha)
         self.textblock.set_text(str(message))
         self.text.regen()
         self.text.draw()
