@@ -7,11 +7,12 @@ from colorthief import ColorThief
 
 class Photo:
     def __init__(self, filepath):
+        self.filepath = filepath
         self.image = _load_cached_image(filepath)
 
     def get_palette(self):
         """Return a list of RGB tuples representing the dominant colors in the photo."""
-        return ColorThief(self.image).get_palette(color_count=3, quality=10)
+        return ColorThief(self.filepath).get_palette(color_count=3, quality=10)
         
     def load_texture(self) -> Texture:
         return Texture(self.image, blend=True, m_repeat=True)
