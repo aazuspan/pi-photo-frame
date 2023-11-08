@@ -1,8 +1,10 @@
 from PIL import Image
 from pi3d import Texture
 from typing import Union
+from functools import lru_cache
 
 
+@lru_cache(maxsize=3)
 def load_photo_texture(filepath):
     """Load a photo from a file and return a pi3d.Texture."""
     image = Image.open(filepath)

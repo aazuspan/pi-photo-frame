@@ -17,7 +17,7 @@ import logging
 import pi3d
 import threading
 from typing import Union
-from . import constants
+from . import config
 from .irw import IRW
 from .photo_queue import PhotoQueue
 from .motion_sensor import MotionSensor
@@ -34,10 +34,12 @@ class PhotoFrame:
         self.motion_sensor = MotionSensor(motion_gpio) if motion_gpio else None
         
         # Amount of alpha to fade every frame when fading in new photo
-        self._delta_alpha = 1.0 / (constants.FPS * constants.TIME_FADE)
+        self._delta_alpha = 1.0 / (config.FPS * config.TIME_FADE)
+        self.foreground_alpha = 0.0
 
         self.current_time = time.time()
         self.next_time = 0.0
+        self.text_thread = threading.Timer(0.0, self.clear_text)
 
         self.foreground = None
         self.background = None
@@ -49,7 +51,7 @@ class PhotoFrame:
         self.slide.unif[45:47] = self.slide.unif[42:44]  # transfer front width and height factors to back
         self.slide.unif[51:53] = self.slide.unif[48:50]  # transfer front width and height offsets
         wh_rat = (self.display.width * self.foreground.iy) / (self.display.height * self.foreground.ix)
-        if (wh_rat > 1.0 and constants.FIT) or (wh_rat <= 1.0 and not constants.FIT):
+        if (wh_rat > 1.0 and config.FIT) or (wh_rat <= 1.0 and not config.FIT):
             sz1, sz2, os1, os2 = 42, 43, 48, 49
         else:
             sz1, sz2, os1, os2 = 43, 42, 49, 48
@@ -59,49 +61,44 @@ class PhotoFrame:
         self.slide.unif[os1] = (wh_rat - 1.0) * 0.5
         self.slide.unif[os2] = 0.0
 
+    def update_slide(self):
+        """Set the foreground and background for a new slide."""
+        self.background = self.foreground
+        self.foreground = None
+
+        while not self.foreground:
+            self.foreground = self.photo_queue.load()
+
+        # First run through
+        if not self.background:
+            self.background = self.foreground
+
+        self.slide.set_textures([self.foreground, self.background])            
+        self._resize_slide()
+        self.next_time = self.current_time + self.delay
+
+    def update_alpha(self):
+        if self.foreground_alpha >= 1.0:
+            return
+
+        self.foreground_alpha = min(self.foreground_alpha + self._delta_alpha, 1.0)
+        self.slide.unif[44] = self.foreground_alpha
 
     def play(self):
         """Playback loop."""
         while self.display.loop_running():
-            self.current_time = time.time()
-            if self.current_time > self.next_time and not self._paused:
-                self.next_time = self.current_time + self.delay
-                # Proportion of front image to back
-                alpha = 0.0
-
-                # Use current picture as background that next picture will fade over
-                self.background = self.foreground
-                self.foreground = None
-
-                while not self.foreground:
-                    self.foreground = self.photo_queue.next().load()
-
-                # First run through
-                if not self.background:
-                    self.background = self.foreground
-
-                self.slide.set_textures([self.foreground, self.background])
-                
-                # Resize the picture to fit the slide
-                self._resize_slide()
-
-            # BUG: "PREVIOUS" will show through when you go back and forth between slides
-            # Fade alpha in (avoid overshooting 1.0) and ignore remote and motion
-            if alpha + self._delta_alpha < 1.0:
-                alpha += self._delta_alpha
-                self.slide.unif[44] = alpha
-            # Alpha transition is over
-            else:
-                # Set alpha to fully opaque once fade is finished
-                self.slide.unif[44] = 1.0
-                # Check for IR remote commands and react
-                self.check_irw()
-            
-            if self.motion_sensor:
-                self.motion_sensor.update()
-            
+            self.update_alpha()
             self.slide.draw()
             self.text.draw()
+            self.check_irw()
+
+            self.current_time = time.time()
+            if self.current_time > self.next_time and not self._paused:
+                self.foreground_alpha = 0.0
+                self.next_slide()
+                        
+            if self.motion_sensor:
+                self.motion_sensor.update()
 
     def stop(self):
         """End the program."""
@@ -112,44 +109,45 @@ class PhotoFrame:
 
     def _create(self):
         """Create pi3d components."""
-        CODEPOINTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-        self.display = pi3d.Display.create(frames_per_second=constants.FPS, background=constants.BACKGROUND_COLOR)
+        self.display = pi3d.Display.create(frames_per_second=config.FPS, background=config.BACKGROUND_COLOR)
         camera = pi3d.Camera(is_3d=False)
         shader = pi3d.Shader("blend_new")
-        font = pi3d.Font(str(constants.FONT_FILE), grid_size=7, shadow_radius=4.0, codepoints=CODEPOINTS, shadow=(0, 0, 0, 128))
+        font = pi3d.Font(str(config.FONT_FILE), codepoints=config.CODEPOINTS, shadow_radius=4.0, shadow=(0, 0, 0, 128))
 
         self.slide = pi3d.Sprite(camera=camera, w=self.display.width, h=self.display.height, z=5.0)
         self.text = pi3d.PointText(font, camera, max_chars=200, point_size=50)
         self.textblock = pi3d.TextBlock(x=-self.display.width * 0.5 + 50, y=-self.display.height * 0.4, z=0.1, rot=0.0, char_count=199, spacing="F", space=0.02)
         
         self.slide.set_shader(shader)
-        self.slide.unif[47] = constants.EDGE_ALPHA
+        self.slide.unif[47] = config.EDGE_ALPHA
         self.text.add_text_block(self.textblock)
+        self.textblock.set_text("")
     
     def clear_text(self):
         """Clear text from the screen."""
         self.textblock.colouring.set_colour(alpha=0.0)
 
-    def display_text(self, message, duration: Union[float, None]=2.0):
+    def display_text(self, message, duration: Union[float, None]=2.0, alpha: float=1.0):
         """Display text on the screen."""
+        self.textblock.colouring.set_colour(alpha=alpha)
         self.textblock.set_text(str(message))
-        self.textblock.colouring.set_colour(alpha=0.5)
         self.text.regen()
+        self.text.draw()
 
+        self.text_thread.cancel()
         if duration is not None:
-            threading.Timer(duration, self.clear_text).start()
+            self.text_thread = threading.Timer(duration, self.clear_text)
+            self.text_thread.start()
 
     def next_slide(self):
         """Navigate to the next slide."""
-        self.next_time = time.time() - 1.0
+        self.photo_queue.next()
+        self.update_slide()
 
     def prev_slide(self):
         """Navigate to the previous slide."""
-        # TODO: Refactor the photo navigation system
-        # The current system advances forward whenever a new slide is loaded,
-        # so we have to go back two slides to get to the previous one. 
-        self.photo_queue.previous().previous()
-        self.next_slide()
+        self.photo_queue.previous()
+        self.update_slide()
             
     def check_irw(self):
         """Check for IR remote commands and handle them."""
@@ -164,16 +162,16 @@ class PhotoFrame:
 
         if command == "KEY_PLAY":
             self._paused = False
-            self.display_text('PLAY')
+            self.display_text('▶')
         elif command == "KEY_PLAYPAUSE":
             self._paused = not self._paused
-            self.display_text('PAUSE' if self._paused else 'PLAY')
+            self.display_text('⏸' if self._paused else '▶')
         elif command in ['KEY_LEFT', 'KEY_REWIND']:
-            self.display_text('PREVIOUS')
+            self.display_text('◀◀')
             self.prev_slide()
         elif command in ['KEY_RIGHT', 'KEY_FORWARD']:
-            self.display_text('NEXT')
+            self.display_text('▶▶')
             self.next_slide()
-        elif command == "KEY_INFO":
-            img_name = self.photo_queue.photos[self.photo_queue.idx].as_posix()
-            self.display_text(img_name)
+        elif command == "KEY_UP":
+            img_name = self.photo_queue.photos[self.photo_queue.idx].name
+            self.display_text(img_name, duration=10)

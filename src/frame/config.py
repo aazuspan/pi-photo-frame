@@ -1,7 +1,8 @@
 from pathlib import Path
 
 # Font path relative to the CLI module
-FONT_FILE = Path(__file__).parent.parent.parent / "fonts/NotoSans-Regular.ttf"
+FONT_FILE = Path(__file__).parent.parent.parent / "fonts/Symbola.otf"
+CODEPOINTS = u'⏸▶◀°abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_+=~`[]{}|\:;"\'<>,.?/ üöäÜÖÄß'
 
 # Determines how smooth fades are
 FPS = 20
