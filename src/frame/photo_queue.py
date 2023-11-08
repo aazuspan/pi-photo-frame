@@ -16,7 +16,7 @@ class PhotoQueue:
         self.exts = exts
         self.photos = self._get_photos()
         self.idx = 0
-        self.preload_thread = threading.Thread(target=self._preload_next)
+        self.preload_thread = threading.Thread()
 
     def _get_photos(self):
         """Generate the photo list."""
@@ -57,7 +57,7 @@ class PhotoQueue:
         """Load the current photo in the queue."""
         if self.preload_thread.is_alive():
             self.preload_thread.join()
-        self.preload_thread = threading.Thread(target=self.preload_next)
+        self.preload_thread = threading.Thread(target=self._preload_next)
         self.preload_thread.start()
         
         filepath = self.photos[self.idx].as_posix()
