@@ -67,13 +67,17 @@ class PhotoFrame:
         self.foreground = None
 
         while not self.foreground:
-            self.foreground = self.photo_queue.load()
+            photo = self.photo_queue.load()
+            self.foreground = photo.load_texture()
 
         # First run through
         if not self.background:
             self.background = self.foreground
 
         self.slide.set_textures([self.foreground, self.background])            
+        color = photo.get_palette()[0]
+        self.display.set_background(*[c / 255 for c in color], alpha=1.0)
+
         self._resize_slide()
         self.next_time = self.current_time + self.delay
 
