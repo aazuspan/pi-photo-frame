@@ -13,7 +13,7 @@ class PhotoQueue:
         if not self.directory.is_dir():
             raise ValueError(f"{directory} is not a directory!")
         self.shuffle = shuffle
-        self.exts = exts
+        self.exts = [ext.upper() for ext in exts] + [ext.lower() for ext in exts]
         self.photos = self._get_photos()
         self.idx = 0
         self.preload_thread = threading.Thread(target=self.preload_next)
