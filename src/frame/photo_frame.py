@@ -16,11 +16,13 @@ import time
 import logging
 import pi3d
 import threading
+from PIL import Image
 from typing import Union
 from . import config
 from .irw import IRW
 from .photo_queue import PhotoQueue
 from .motion_sensor import MotionSensor
+from .photo_utils import get_exif_date
 
 
 class PhotoFrame:
@@ -173,5 +175,7 @@ class PhotoFrame:
             self.display_text('▶▶')
             self.next_slide()
         elif command == "KEY_UP":
-            img_name = self.photo_queue.photos[self.photo_queue.idx].name
-            self.display_text(img_name, duration=10)
+            img_path = self.photo_queue.photos[self.photo_queue.idx]
+            date = get_exif_date(Image.open(img_path))
+            meta = f"{img_path.name}\n{date}"
+            self.display_text(meta, duration=10)
